@@ -1,9 +1,10 @@
+gdown
+scikit-learn
+albumentations
+opencv-python==4.7.0.72
+opencv-python-headless==4.8.1.78
+
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch
 torchvision
 torchaudio
-
-scikit_learn
-albumentations
-opencv-python==4.7.0.72
-opencv-python-headless==4.8.1.78

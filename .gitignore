@@ -1,6 +1,6 @@
 __pycache__
-Data
-Data/train
+!Data/download_data.py
+Data/dsb-data-2018
 CheckPoint/*.ipynb
 Result/*
 wandb
