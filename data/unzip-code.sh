@@ -7,15 +7,22 @@ mkdir -p "$TARGET_DIR"
 
 # 3. Loop through all .zip files in the source directory
 for zip_file in "$SOURCE_DIR"/*.zip; do
-    
-    # Check if any zip files actually exist to avoid errors
     [ -e "$zip_file" ] || continue
+
+    # 1. Get the filename without the path (e.g., "data.zip")
+    base_name=$(basename "$zip_file")
     
-    echo "Extracting: $zip_file"
+    # 2. Strip the .zip extension (e.g., "data")
+    folder_name="${base_name%.*}"
     
-    # -d specifies the destination directory
-    # -q runs 'quietly' to keep your terminal clean
-    unzip -q "$zip_file" -d "$TARGET_DIR"
+    # 3. Define the specific path for this zip
+    extraction_path="$TARGET_DIR/$folder_name"
+
+    echo "Extracting $base_name to $extraction_path..."
+    
+    # 4. Create the specific subfolder and unzip into it
+    mkdir -p "$extraction_path"
+    unzip -q "$zip_file" -d "$extraction_path"
 done
 
 echo "Done! All files moved to $TARGET_DIR"
