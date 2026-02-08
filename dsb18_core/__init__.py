@@ -1,26 +1,37 @@
-# Model
 import torch
 from .model.unet2d import UNet
-
-
-# Dataset
+from .model.nn_unet2d import nnUNet2D
 from .build_dataset import get_dataset_mapping
 
+
 def get_model(CFG):
+    """Get segmentation model by configuration.
+    
+    Args:
+        CFG: Configuration object with net_structure and model parameters
+        
+    Returns:
+        PyTorch model instance
+        
+    Raises:
+        ValueError: If network structure is not supported
+    """
     model_mapping = {
-        # ------------------------------------------------ 
-        # ------------------------------------------------ 
-        # ----------- 2D MODEL BASELINE ------------------ 
-        # ------------------------------------------------ 
-        # ------------------------------------------------
-        "Unet25D": UNet(
-            in_channels=CFG.num_slice, 
+        "Unet2D": UNet(
+            in_channels=CFG.input_channel, 
             n_channels=CFG.s_channel, 
-            n_classes=CFG.num_classes),
+            n_classes=CFG.num_classes
+        ),
+        "nnUnet2D": nnUNet2D(
+            in_channels=CFG.input_channel, 
+            n_channels=CFG.s_channel, 
+            n_classes=CFG.num_classes
+        ),
     }
     
-    if CFG.net_structure not in model_mapping.keys():
-        raise ValueError("Network " + CFG.net_structure + " unknown!")
+    if CFG.net_structure not in model_mapping:
+        raise ValueError(f"Network '{CFG.net_structure}' not supported. "
+                        f"Available: {list(model_mapping.keys())}")
     
     model = model_mapping[CFG.net_structure]
     
@@ -28,6 +39,7 @@ def get_model(CFG):
         model = torch.nn.DataParallel(model)
     
     if CFG.debug:
-        print("Params: ", sum(p.numel() for p in model.parameters()))
+        total_params = sum(p.numel() for p in model.parameters())
+        print(f"Model parameters: {total_params:,}")
 
     return model

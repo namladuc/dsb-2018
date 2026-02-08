@@ -93,6 +93,13 @@ class Dataset2D(torch.utils.data.Dataset):
                 # Binary mask for each nucleus
                 combined_mask = np.maximum(combined_mask, (mask > 0).astype(np.float32))
         
+        # Assert image and label have the same size before preprocessing
+        img_h, img_w = img.shape[:2]
+        mask_h, mask_w = combined_mask.shape[:2]
+        assert img_h == mask_h and img_w == mask_w, \
+            f"Image shape {(img_h, img_w)} does not match mask shape {(mask_h, mask_w)} " \
+            f"for image_id {self.df['image_id'].iloc[index]} at path {image_path}"
+        
         # Save before preprocessing (debug mode)
         if debug_mode and index < 5:  # Only save first 5 samples per subset
             print(f"[DEBUG] Saving debug images for index={index}, image_id={self.df['image_id'].iloc[index]}", flush=True)
@@ -130,6 +137,20 @@ class Dataset2D(torch.utils.data.Dataset):
                 target_size = self.preprocessing_params.get('target_size', [h, w])
                 combined_mask = cv2.resize(combined_mask, target_size, 
                                           interpolation=cv2.INTER_NEAREST)
+        
+        # Debug: Print pixel value statistics after preprocessing
+        if debug_mode and index < 5:
+            print(f"[DEBUG] Image pixel values after preprocessing:")
+            print(f"  Shape: {img.shape}")
+            print(f"  Min: {img.min():.4f}, Max: {img.max():.4f}")
+            print(f"  Mean: {img.mean():.4f}, Std: {img.std():.4f}")
+            print(f"  Dtype: {img.dtype}")
+            print(f"  Range check - values in [-5, 5]: {np.percentile(img, [0, 25, 50, 75, 100])}")
+            print(f"[DEBUG] Mask pixel values after preprocessing:")
+            print(f"  Shape: {combined_mask.shape}")
+            print(f"  Min: {combined_mask.min():.4f}, Max: {combined_mask.max():.4f}")
+            print(f"  Mean: {combined_mask.mean():.4f}")
+            print()
         
         # Ensure correct shapes
         if len(img.shape) == 2:

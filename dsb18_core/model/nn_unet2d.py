@@ -1,8 +1,8 @@
 import torch.nn as nn
-from .util.modules import DoubleConv
-from .util.modules import Down2D as Down
-from .util.modules import Up2D as Up
-from .util.modules import Out2D as Out
+from .util.module_nn import DoubleConv
+from .util.module_nn import Down2D as Down
+from .util.module_nn import Up2D as Up
+from .util.module_nn import Out2D as Out
 import torch.nn.functional as F
 
 class nnUNet2D(nn.Module):

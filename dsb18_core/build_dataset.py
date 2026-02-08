@@ -23,7 +23,7 @@ def get_dataset_mapping(CFG):
     """
     Route to DSB-2018 dataset builder (only dataset supported)
     """
-    if 'DSB2018' not in CFG.net_structure and 'Unet2D' not in CFG.net_structure:
+    if 'Unet2D' not in CFG.net_structure:
         raise ValueError(f"Network structure '{CFG.net_structure}' not supported. "
                         f"This codebase is configured for DSB-2018 dataset only. "
                         f"Use network structures like 'Unet2D_DSB2018'.")
@@ -53,7 +53,7 @@ def get_train_valid_dataset_dsb2018(CFG, path_data):
     
     fingerprint = get_dsb2018_fingerprint(
         path_data, 
-        max_samples=None if not CFG.debug else 50,
+        max_samples=None if not CFG.debug else 20,
         verbose=True
     )
     
@@ -118,7 +118,8 @@ def get_train_valid_dataset_dsb2018(CFG, path_data):
                  if os.path.isdir(os.path.join(train_path, d))]
     
     if CFG.debug:
-        image_ids = image_ids[:50]
+        image_ids = image_ids[:20]  # Use 20 total for train/valid split
+
     
     # Create dataframe
     data_list = []
@@ -160,7 +161,9 @@ def get_train_valid_dataset_dsb2018(CFG, path_data):
     from sklearn.model_selection import train_test_split
     
     # Stratified split by number of nuclei (binned)
-    df['nuclei_bin'] = pd.cut(df['num_nuclei'], bins=5, labels=False)
+    # Use fewer bins for debug mode
+    num_bins = 2 if CFG.debug else 5
+    df['nuclei_bin'] = pd.cut(df['num_nuclei'], bins=num_bins, labels=False)
     
     train_df, valid_df = train_test_split(
         df, 
@@ -171,6 +174,11 @@ def get_train_valid_dataset_dsb2018(CFG, path_data):
     
     train_df = train_df.reset_index(drop=True)
     valid_df = valid_df.reset_index(drop=True)
+    
+    # In debug mode, use limited samples
+    if CFG.debug:
+        train_df = train_df.iloc[:10]
+        valid_df = valid_df.iloc[:2]
     
     print(f"Training images: {len(train_df)}")
     print(f"Validation images: {len(valid_df)}")

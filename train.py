@@ -3,18 +3,20 @@ import wandb
 import argparse
 from tqdm import tqdm
 tqdm.pandas()
-import os
-import torch # PyTorch 
+import torch
 import torch.optim as optim
 import warnings
 from datetime import datetime
 warnings.filterwarnings("ignore")
 
-from .dsb18_core.utils import *
+from dsb18_core.utils import set_seed
 from dsb18_core import get_model, get_dataset_mapping
+from dsb18_core.pipeline import get_train_valid
+from dsb18_core.utils import fetch_scheduler
+
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="U-Net 25D")
+    parser = argparse.ArgumentParser(description="U-Net 2D Segmentation Training")
     # Add arguments for each attribute in the CFG class
     parser.add_argument('--seed', type=int, default=CFG.seed, help="Random seed for reproducibility.")
     parser.add_argument('--debug', type=int, default=CFG.debug, help="Debug mode: saves first 5 images before/after preprocessing to debug/ folder ")
@@ -61,17 +63,27 @@ if __name__ == "__main__":
     parser.add_argument('--device', type=str, default=CFG.device, help="Device for training (cuda:0 for GPU, cpu for CPU).")
     parser.add_argument('--net_structure', type=str, default=CFG.net_structure, help="Network structure type.")
     parser.add_argument('--valid_epochs', type=int, default=CFG.valid_epochs, help="Valid Epoch step")
+    parser.add_argument('--input_channel', type=int, default=CFG.input_channel, help="Number of input channels.")
+    parser.add_argument('--num_classes', type=int, default=CFG.num_classes, help="Number of output classes.")
+
+    # Loss and Metrics
+    parser.add_argument('--loss_name', type=str, default=CFG.loss_name, 
+                       help="Loss function: 'dice_entropy', 'tversky_entropy', 'focal_dice', 'bce', 'dice', 'tversky'")
+    parser.add_argument('--metrics', type=str, nargs='+', default=CFG.metrics,
+                       help="Metrics to track: 'dice', 'iou'")
+    parser.add_argument('--fold_selected', type=int, default=CFG.fold_selected,
+                       help="Fold index for cross-validation.")
     
-    parser.add_argument('--fire_split', type=int, default=CFG.fire_split, help="Number of splits in the Fire module.")
+    # Fire module config
     parser.add_argument('--expand_ratio', type=int, default=CFG.expand_ratio, help="Expansion ratio in the Fire module.")
     parser.add_argument('--expand_kernel', type=int, default=CFG.expand_kernel, help="Expansion kernel size in the Fire module.")
     
     parser.add_argument('--block_num', type=int, default=CFG.block_num, help="Number of Block In transformers")
     parser.add_argument('--patch_dim', type=int, default=CFG.patch_dim, help="Patch Size Dimension in Transformer")   
     parser.add_argument('--head_num', type=int, default=CFG.head_num, help="Number Of Head in Transformer")
-    parser.add_argument('--mlp_dim', type=int, default=CFG.mlp_dim, help="Dimension of MLP in Transformer")   
     args = parser.parse_args()
     
+    # Initialize WandB if enabled
     if args.using_wandb:
         try:
             if (args.debug):
@@ -86,35 +98,47 @@ if __name__ == "__main__":
     set_seed(args.seed)
     train_loader, valid_loader = get_dataset_mapping(args)
     
-    print("Model training: ", args.net_structure)
+    # Build model
+    print(f"Loading model: {args.net_structure}")
     model = get_model(args)
-    if (args.resume_train):
-        model.load_state_dict(torch.load(f'{args.checkP_name}'))
+    
+    if args.resume_train:
+        print(f"Resuming from checkpoint: {args.checkP_name}")
+        model.load_state_dict(torch.load(args.checkP_name))
+    
     model.to(args.device)
-        
-    print(f'#'*35)
-    print(f'######### Fold: {args.fold_selected}')
-    print(f'#'*35)
+    
+    # Print fold information
+    print(f"\n{'#'*35}")
+    print(f"Fold: {args.fold_selected}")
+    print(f"{'#'*35}\n")
+    
+    # Get training function
     train_valid_fn = get_train_valid(args)
     
+    # Initialize WandB run
+    run = None
     if args.using_wandb:
         run = wandb.init(
-            # set the wandb project where this run will be logged
             project="DSB-ChuyenDe4-MasterDS",
-            config={k:v for k, v in dict(vars(args)).items() if '__' not in k},
+            config={k: v for k, v in vars(args).items() if not k.startswith('_')},
             name=f"{args.model_name}_{args.aug}",
             id=args.id_wandb if args.resume_train else None,
-            resume="must"
+            resume="must" if args.resume_train else "never"
         )
-    else:
-        run = None
     
-    optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=CFG.wd)
+    # Create optimizer and scheduler
+    optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.wd)
     scheduler = fetch_scheduler(optimizer, args)
-    model, history = train_valid_fn(model, optimizer, scheduler, run,
-                                  num_epochs=args.epochs,
-                                  train_loader=train_loader,
-                                  valid_loader=valid_loader, CFG=args)
+    
+    # Train model
+    model, history = train_valid_fn(
+        model, optimizer, scheduler, run,
+        num_epochs=args.epochs,
+        train_loader=train_loader,
+        valid_loader=valid_loader,
+        CFG=args
+    )
     
     if args.using_wandb:
         run.finish()

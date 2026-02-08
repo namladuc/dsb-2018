@@ -14,7 +14,7 @@ class CFG:
     best_epoch    = -1
 
     # ----- Dataset -----
-    path_data     = "./data"
+    path_data     = "./data/dsb-data-2018"
     dataset       = "DSB2018" # DSB-2018 Nuclei Segmentation
     aug           = "baseline"
     isPinMemory   = torch.cuda.is_available()
@@ -32,17 +32,24 @@ class CFG:
     mask_interpolation = 1           # Order 1 = Linear Interpolation
     
     # ----- Model -----
-    net_structure = 'Unet2D_DSB2018'
+    net_structure = 'nnUnet2D'
     model_name    = 'Unet2D_DSB2018'
     isDeeply      = False
     backbone      = "none"
     epochs        = 50
     lr            = 0.002
     scheduler     = 'CosineAnnealingLR'
+    
+    # ----- Loss and Metrics -----
+    loss_name     = 'dice_entropy'  # 'dice_entropy', 'tversky_entropy', 'focal_dice', 'bce', 'dice', 'tversky'
+    metrics       = ['dice', 'iou']  # Metrics to track during validation
+    fold_selected = 0  # Fold index for cross-validation
     min_lr        = 1e-5
     T_max         = int(30000/train_bs*epochs)+50
     T_0           = 25
     s_channel     = 8
+    input_channel = 3
+    num_classes   = 1
     use_parallel  = False
     warmup_epochs = 0
     wd            = 1e-6
