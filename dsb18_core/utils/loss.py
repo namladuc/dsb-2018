@@ -5,7 +5,7 @@ import segmentation_models_pytorch as smp
 import numpy as np
 from torch.nn.modules.loss import _Loss
 from collections.abc import Callable, Sequence
-from .util import LossReduction, one_hot
+from .utils import LossReduction, one_hot
 import warnings
 
 def dice_coef(y_true, y_pred, CFG, thr=0.5, dim=(2,3), mean_dim=(1, 0), epsilon=0.001):
@@ -27,21 +27,6 @@ def iou_coef(y_true, y_pred, CFG, thr=0.5, dim=(2,3), mean_dim=(1, 0), epsilon=0
     union = (y_true + y_pred - y_true*y_pred).sum(dim=dim)
     iou = ((inter+epsilon)/(union+epsilon)).mean(dim=mean_dim)
     return iou
-
-def dice_loss_3d(y_true, y_pred, CFG, thr=0.5, dim=(2,3,4), epsilon=1e-6):
-    '''
-        Batch, Channel, Dim, Height, Width
-    '''
-    y_pred = y_pred.log_softmax(dim=1).exp()
-    y_true = y_true.to(torch.float32)
-    y_pred = (y_pred>thr).to(torch.float32)
-    tp = (y_true*y_pred).sum(dim=dim)
-    fn = (y_true*(1 - y_pred)).sum(dim=dim)
-    fp = ((1- y_true)*y_pred).sum(dim=dim)
-    numerator = 2 * tp + epsilon
-    denominator = 2 * tp + fn + fp + epsilon
-    dice = (1 - numerator / denominator).mean(dim=(1,0))
-    return dice
 
 class DiceLossMonAi(_Loss):
     """
@@ -251,15 +236,3 @@ def criterion_Tversky(y_pred, y_true, CFG):
     TverskyLoss = smp.losses.TverskyLoss(mode='multilabel', log_loss=False)
     return 0.5*BCELoss(y_pred, y_true) + 0.5*TverskyLoss(y_pred, y_true)
 
-def criterion3D(y_pred, y_true, CFG):
-    if CFG.isDeeply:
-        y_true = F.interpolate(y_true,size=y_pred.shape[2::])
-    DiceLoss    = DiceLossMonAi(sigmoid=True)
-    BCELoss     = F.binary_cross_entropy_with_logits
-    
-    return 0.6*BCELoss(y_pred, y_true) + 0.4*DiceLoss(y_pred, y_true)
-
-def criterionSlice(y_pred, y_true, CFG):
-    if CFG.isDeeply:
-        y_true = F.interpolate(y_true,size=y_pred.shape[2::])
-    return F.mse_loss(torch.sigmoid(y_pred), y_true)

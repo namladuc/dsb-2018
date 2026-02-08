@@ -10,14 +10,14 @@ import warnings
 from datetime import datetime
 warnings.filterwarnings("ignore")
 
-from util import *
-from Core import getModel, getDatasetMapping
+from .dsb18_core.utils import *
+from dsb18_core import get_model, get_dataset_mapping
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="U-Net 25D")
     # Add arguments for each attribute in the CFG class
     parser.add_argument('--seed', type=int, default=CFG.seed, help="Random seed for reproducibility.")
-    parser.add_argument('--debug', type=int, default=CFG.debug, help="Enable debugging mode.")
+    parser.add_argument('--debug', type=int, default=CFG.debug, help="Debug mode: saves first 5 images before/after preprocessing to debug/ folder ")
     parser.add_argument('--using_wandb', type=int, default=CFG.using_wandb, help="Enable wandb logging.")
     parser.add_argument('--resume_train', type=bool, default=CFG.resume_train, help="Resume training from a checkpoint.")
     parser.add_argument('--id_wandb', type=str, default=CFG.id_wandb, help="Wandb id for resuming training.")
@@ -27,23 +27,20 @@ if __name__ == "__main__":
     parser.add_argument('--best_epoch', type=int, default=CFG.best_epoch, help="Best epoch for resuming training.")
     
     # Dataset
-    parser.add_argument('--path_data', type=str, default=CFG.path_data, help="Dataset Path.")
-    parser.add_argument('--dataset', type=str, default=CFG.dataset, help="Dataset name.")
+    parser.add_argument('--path_data', type=str, default=CFG.path_data, help="Dataset Path (DSB-2018).")
+    parser.add_argument('--dataset', type=str, default=CFG.dataset, help="Dataset name (DSB2018).")
     parser.add_argument('--aug', type=str, default=CFG.aug, help="Data augmentation kit set choice.")
-    parser.add_argument('--lower_percentile', type=int, default=CFG.lower_percentile, help="Lower percentile for data preprocessing.")
-    parser.add_argument('--upper_percentile', type=int, default=CFG.upper_percentile, help="Upper percentile for data preprocessing.")
     parser.add_argument('--isPinMemory', type=bool, default=CFG.isPinMemory, help="Enable pinned memory if available.")
     parser.add_argument('--numWorker', type=int, default=CFG.numWorker, help="Number of data loader workers.")
     parser.add_argument('--train_bs', type=int, default=CFG.train_bs, help="Batch size for training.")
     parser.add_argument('--valid_bs', type=int, default=CFG.valid_bs, help="Batch size for validation.")
     parser.add_argument('--img_size', type=tuple, default=CFG.img_size, help="Image size (width, height).")
-    parser.add_argument('--patch_size', type=int, default=CFG.patch_size, help="Patch size")
-    parser.add_argument('--num_slice', type=int, default=CFG.num_slice, help="Number of slice for 2.5D model input")
-    parser.add_argument('--stride', type=int, default=CFG.stride, help="Stride step for space each slice")
-    parser.add_argument('--n_fold', type=int, default=CFG.n_fold, help="Number of folds for cross-validation.")
-    parser.add_argument('--fold_selected', type=int, default=CFG.fold_selected, help="Selected fold for training.")
-    parser.add_argument('--fold_test', type=int, default=CFG.fold_test, help="Selected fold for testing.")
-    parser.add_argument('--num_classes', type=int, default=CFG.num_classes, help="Number of classes in the dataset.")
+    parser.add_argument('--resize_mode', type=str, default=CFG.resize_mode, help="Resize mode: 'resize_only' or 'pad_and_resize'.")
+    parser.add_argument('--spacing', type=tuple, default=CFG.spacing, help="Image spacing (x, y).")
+    parser.add_argument('--normalization_method', type=str, default=CFG.normalization_method, help="Intensity normalization method (zscore, percentile, minmax).")
+    parser.add_argument('--normalization_scope', type=str, default=CFG.normalization_scope, help="Normalization scope (global or local).")
+    parser.add_argument('--image_interpolation', type=int, default=CFG.image_interpolation, help="Image interpolation order (0-5).")
+    parser.add_argument('--mask_interpolation', type=int, default=CFG.mask_interpolation, help="Mask interpolation order (0-5).")
     
     # Model
     parser.add_argument('--model_name', type=str, default=CFG.model_name, help="Name of the model.")
@@ -87,10 +84,10 @@ if __name__ == "__main__":
             anonymous = "must"
     
     set_seed(args.seed)
-    train_loader, valid_loader = getDatasetMapping(args)
+    train_loader, valid_loader = get_dataset_mapping(args)
     
     print("Model training: ", args.net_structure)
-    model = getModel(args)
+    model = get_model(args)
     if (args.resume_train):
         model.load_state_dict(torch.load(f'{args.checkP_name}'))
     model.to(args.device)
@@ -98,7 +95,7 @@ if __name__ == "__main__":
     print(f'#'*35)
     print(f'######### Fold: {args.fold_selected}')
     print(f'#'*35)
-    train_valid_fn = getTrain_Valid(args)
+    train_valid_fn = get_train_valid(args)
     
     if args.using_wandb:
         run = wandb.init(

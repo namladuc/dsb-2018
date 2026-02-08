@@ -1,7 +1,8 @@
 __pycache__
-!Data/download_data.py
-Data/dsb-data-2018
-CheckPoint/*.ipynb
+!data/download_data.py
+data/dsb-data-2018
+checkPoint/*.ipynb
+debug/
 Result/*
 wandb
 *.ptl

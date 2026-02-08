@@ -1,12 +1,12 @@
 # Model
 import torch
-from .Model.unet2d import UNet
+from .model.unet2d import UNet
 
 
 # Dataset
-from .build_dataset import getDatasetMapping
+from .build_dataset import get_dataset_mapping
 
-def getModel(CFG):
+def get_model(CFG):
     model_mapping = {
         # ------------------------------------------------ 
         # ------------------------------------------------ 

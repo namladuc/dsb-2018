@@ -1,4 +1,4 @@
-from Core import *
+from dsb18_core import *
 import wandb
 import numpy as np # linear algebra
 from tqdm import tqdm

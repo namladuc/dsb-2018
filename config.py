@@ -2,39 +2,38 @@ import torch
 
 class CFG:
     seed          = 42
-    debug         = 0 
+    debug         = 0  # Debug mode: saves first 5 images before/after preprocessing to debug/ folder 
     
     # Resume Train 
     resume_train  = False
     id_wandb      = ""
     checkP_name   = ""
     epochs_res    = 0
-    using_wandb   = 1
+    using_wandb   = 0
     best_dice     = -1
     best_epoch    = -1
 
     # ----- Dataset -----
-    path_data     = "./Data"
-    dataset       = "DSB2018" # 
-    aug           = "kit1_3d"
-    lower_percentile = 1       # Determine the lower and upper percentiles
-    upper_percentile = 99
+    path_data     = "./data"
+    dataset       = "DSB2018" # DSB-2018 Nuclei Segmentation
+    aug           = "baseline"
     isPinMemory   = torch.cuda.is_available()
     numWorker     = 16
     train_bs      = 8
     valid_bs      = 8
-    img_size      = (384, 320) # width, height # 2D: 384x320 / 3D: 400x320 / Transformer: 384x384
-    patch_size    = 160        # 3D Only / Transform = 8
-    num_slice     = 5
-    stride        = 1
-    n_fold        = 5
-    fold_selected = 1
-    fold_test     = 2
-    num_classes   = 3
+    img_size      = (320, 256) # width, height
+    resize_mode   = 'pad_and_resize' # 'resize_only' or 'pad_and_resize'
     
-    # ----- Model
-    net_structure = 'Unet25D_Deeply'
-    model_name    = 'Unet25D_Deeply-Size-M'
+    # ----- Preprocessing Config -----
+    spacing = (1, 1)                 # x, y spacing
+    normalization_method = 'z_score'  # 'z_score' or 'percentile' or 'minmax'
+    normalization_scope = 'global'   # apply normalization across entire image
+    image_interpolation = 3          # Order 3 = Cubic Interpolation
+    mask_interpolation = 1           # Order 1 = Linear Interpolation
+    
+    # ----- Model -----
+    net_structure = 'Unet2D_DSB2018'
+    model_name    = 'Unet2D_DSB2018'
     isDeeply      = False
     backbone      = "none"
     epochs        = 50

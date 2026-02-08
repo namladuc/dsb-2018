@@ -1,4 +1,4 @@
-from Core import *
+from dsb18_core import *
 import pandas as pd
 import numpy as np # linear algebra
 from tqdm import tqdm
@@ -13,9 +13,8 @@ import copy
 from collections import defaultdict
 import os
 from datetime import datetime
-from .loss import criterion, dice_coef, iou_coef, criterion3D
-from .metrics import hausdorffSliceFirst as hausdorff
-from .train_valid3d import _get_gaussian
+from .loss import criterion, dice_coef, iou_coef
+from .metrics import hausdorff_slice_first as hausdorff
 import timeit
 
 def dice_coef_metric_per_classes(probabilities: np.ndarray,

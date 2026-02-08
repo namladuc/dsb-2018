@@ -1,4 +1,8 @@
 gdown
+wandb
+pandas
+numpy==1.26.4
+matplotlib
 scikit-learn
 albumentations
 opencv-python==4.7.0.72
@@ -8,3 +12,5 @@ opencv-python-headless==4.8.1.78
 torch
 torchvision
 torchaudio
+
+segmentation-models-pytorch

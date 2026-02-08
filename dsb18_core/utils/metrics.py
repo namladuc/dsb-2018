@@ -8,7 +8,7 @@ def hausdorff(y_true, y_pred, max_dist):
         result.append(1.0 - compute_directed_hausdorff(y_pred[..., i], y_true[..., i], max_dist))
     return np.mean(result)
 
-def hausdorffSliceFirst(y_true, y_pred, max_dist, thr=0.5):
+def hausdorff_slice_first(y_true, y_pred, max_dist, thr=0.5):
     y_true = y_true.to(torch.float32).cpu().detach().numpy()
     y_pred = (y_pred>thr).to(torch.float32).cpu().detach().numpy()
     result = []
