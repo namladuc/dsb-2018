@@ -11,18 +11,20 @@ class UNet(nn.Module):
         - Decoder: 5 upsampling blocks with skip connections
     """
     
-    def __init__(self, in_channels, n_classes, n_channels):
+    def __init__(self, in_channels, n_classes, n_channels, isDeeply=False):
         """Initialize U-Net.
         
         Args:
             in_channels: Number of input channels
             n_classes: Number of output classes
             n_channels: Number of base channels
+            isDeeply: Whether to use deep supervision
         """
         super().__init__()
         self.in_channels = in_channels
         self.n_classes = n_classes
         self.n_channels = n_channels
+        self.isDeeply = isDeeply
         
         # Encoder
         self.conv = DoubleConv(in_channels, n_channels)
@@ -40,6 +42,11 @@ class UNet(nn.Module):
         self.dec5 = Up2D(2 * n_channels, n_channels)
         
         # Output
+        if self.isDeeply:
+            self.out1 = Out2D(8 * n_channels, n_classes)
+            self.out2 = Out2D(4 * n_channels, n_classes)
+            self.out3 = Out2D(2 * n_channels, n_classes)
+            self.out4 = Out2D(n_channels, n_classes)
         self.out = Out2D(n_channels, n_classes)
     
     def forward(self, x):
@@ -60,11 +67,18 @@ class UNet(nn.Module):
         x6 = self.enc5(x5)
         
         # Decoder: upsample and combine with encoder features
-        mask = self.dec1(x6, x5)
-        mask = self.dec2(mask, x4)
-        mask = self.dec3(mask, x3)
-        mask = self.dec4(mask, x2)
-        mask = self.dec5(mask, x1)
-        mask = self.out(mask)
-        
+        mask1 = self.dec1(x6, x5)
+        mask2 = self.dec2(mask1, x4)
+        mask3 = self.dec3(mask2, x3)
+        mask4 = self.dec4(mask3, x2)
+        mask5 = self.dec5(mask4, x1)
+
+        mask = self.out(mask5)
+        if self.isDeeply:
+            mask4Out = self.out4(mask4)
+            mask3Out = self.out3(mask3)
+            mask2Out = self.out2(mask2)
+            mask1Out = self.out1(mask1)
+            out = [mask, mask4Out, mask3Out, mask2Out, mask1Out]
+            return out
         return mask

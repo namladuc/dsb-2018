@@ -1,10 +1,10 @@
-albumentations==1.3.1
-ipython==8.18.1
-numpy==1.23.5
+albumentations
+ipython
+numpy==1.26.4
 opencv_python_headless==4.8.1.78
 pandas
 scikit_learn
-segmentation_models_pytorch
+segmentation-models-pytorch
 torch
 torchvision
 tqdm
@@ -12,5 +12,5 @@ wandb
 gdown
 opencv-python
 opencv-python-headless
-einops==0.7.0
+einops
 

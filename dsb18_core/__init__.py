@@ -20,12 +20,14 @@ def get_model(CFG):
         "Unet2D": UNet(
             in_channels=CFG.input_channel, 
             n_channels=CFG.s_channel, 
-            n_classes=CFG.num_classes
+            n_classes=CFG.num_classes,
+            isDeeply=CFG.isDeeply
         ),
         "nnUnet2D": nnUNet2D(
             in_channels=CFG.input_channel, 
             n_channels=CFG.s_channel, 
-            n_classes=CFG.num_classes
+            n_classes=CFG.num_classes,
+            isDeeply=CFG.isDeeply
         ),
     }
     
