@@ -3,6 +3,7 @@ import wandb
 import argparse
 from tqdm import tqdm
 tqdm.pandas()
+import os
 import torch
 import torch.optim as optim
 import warnings
@@ -89,7 +90,7 @@ if __name__ == "__main__":
             if (args.debug):
                 api_key = ''
             else:
-                api_key = ""
+                api_key = os.environ['WANDB_API_KEY']
             wandb.login(key=api_key)
             anonymous = None
         except:

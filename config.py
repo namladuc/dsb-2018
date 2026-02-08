@@ -33,7 +33,7 @@ class CFG:
     
     # ----- Model -----
     net_structure = 'nnUnet2D'
-    model_name    = 'Unet2D_DSB2018'
+    model_name    = 'nnUnet2D_DSB2018'
     isDeeply      = False
     backbone      = "none"
     epochs        = 50
