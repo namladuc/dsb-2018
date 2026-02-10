@@ -183,7 +183,9 @@ def run_training2d(model, optimizer, scheduler, run, num_epochs, train_loader, v
     """
     # Setup experiment directory
     base_dir = os.path.join(os.getcwd(), "runs")
-    exp_name = f"{CFG.dataset}_{CFG.net_structure}_{CFG.backbone}_{CFG.model_name}_{CFG.aug}"
+    exp_name = (
+        f"{CFG.dataset}_{CFG.net_structure}_{CFG.encoder_backbone}_{CFG.model_name}_{CFG.aug}"
+    )
     exp_dir = os.path.join(base_dir, exp_name, datetime.now().strftime("%m_%d_%Y_%H_%M_%S"))
     os.makedirs(exp_dir, exist_ok=True)
 

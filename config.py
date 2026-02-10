@@ -41,7 +41,7 @@ class CFG:
     scheduler = "CosineAnnealingLR"
 
     # ---> available only when net_structure is FusionUnet2D
-    encoder_backbone = "resnet18"
+    encoder_backbone = None
     encoder_weights = "imagenet"
 
     # ----- Loss and Metrics -----
