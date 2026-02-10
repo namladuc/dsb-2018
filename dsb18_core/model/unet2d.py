@@ -1,19 +1,20 @@
 """U-Net 2D segmentation model."""
+
 import torch.nn as nn
 from .util.modules import DoubleConv, Down2D, Up2D, Out2D
 
 
 class UNet(nn.Module):
     """U-Net for 2D image segmentation.
-    
+
     Architecture:
         - Encoder: 5 downsampling blocks
         - Decoder: 5 upsampling blocks with skip connections
     """
-    
+
     def __init__(self, in_channels, n_classes, n_channels, isDeeply=False):
         """Initialize U-Net.
-        
+
         Args:
             in_channels: Number of input channels
             n_classes: Number of output classes
@@ -25,7 +26,7 @@ class UNet(nn.Module):
         self.n_classes = n_classes
         self.n_channels = n_channels
         self.isDeeply = isDeeply
-        
+
         # Encoder
         self.conv = DoubleConv(in_channels, n_channels)
         self.enc1 = Down2D(n_channels, 2 * n_channels)
@@ -33,14 +34,14 @@ class UNet(nn.Module):
         self.enc3 = Down2D(4 * n_channels, 8 * n_channels)
         self.enc4 = Down2D(8 * n_channels, 16 * n_channels)
         self.enc5 = Down2D(16 * n_channels, 16 * n_channels)
-        
+
         # Decoder
         self.dec1 = Up2D(32 * n_channels, 8 * n_channels)
         self.dec2 = Up2D(16 * n_channels, 4 * n_channels)
         self.dec3 = Up2D(8 * n_channels, 2 * n_channels)
         self.dec4 = Up2D(4 * n_channels, n_channels)
         self.dec5 = Up2D(2 * n_channels, n_channels)
-        
+
         # Output
         if self.isDeeply:
             self.out1 = Out2D(8 * n_channels, n_classes)
@@ -48,13 +49,13 @@ class UNet(nn.Module):
             self.out3 = Out2D(2 * n_channels, n_classes)
             self.out4 = Out2D(n_channels, n_classes)
         self.out = Out2D(n_channels, n_classes)
-    
+
     def forward(self, x):
         """Forward pass.
-        
+
         Args:
             x: Input image (B, C, H, W)
-            
+
         Returns:
             Segmentation mask (B, num_classes, H, W)
         """
@@ -65,7 +66,7 @@ class UNet(nn.Module):
         x4 = self.enc3(x3)
         x5 = self.enc4(x4)
         x6 = self.enc5(x5)
-        
+
         # Decoder: upsample and combine with encoder features
         mask1 = self.dec1(x6, x5)
         mask2 = self.dec2(mask1, x4)

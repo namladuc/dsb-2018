@@ -13,4 +13,3 @@ gdown
 opencv-python
 opencv-python-headless
 einops
-

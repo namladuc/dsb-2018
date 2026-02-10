@@ -5,6 +5,7 @@ from .util.module_nn import Up2D as Up
 from .util.module_nn import Out2D as Out
 import torch.nn.functional as F
 
+
 class nnUNet2D(nn.Module):
     def __init__(self, in_channels, n_classes, n_channels, isDeeply=False):
         super().__init__()
@@ -19,7 +20,7 @@ class nnUNet2D(nn.Module):
         self.enc3 = Down(4 * n_channels, 8 * n_channels)
         self.enc4 = Down(8 * n_channels, 16 * n_channels)
         self.enc5 = Down(16 * n_channels, 16 * n_channels)
-        
+
         self.dec1 = Up(32 * n_channels, 8 * n_channels)
         self.dec2 = Up(16 * n_channels, 4 * n_channels)
         self.dec3 = Up(8 * n_channels, 2 * n_channels)
@@ -40,7 +41,7 @@ class nnUNet2D(nn.Module):
         x4 = self.enc3(x3)
         x5 = self.enc4(x4)
         x6 = self.enc5(x5)
-    
+
         mask1 = self.dec1(x6, x5)
         mask2 = self.dec2(mask1, x4)
         mask3 = self.dec3(mask2, x3)

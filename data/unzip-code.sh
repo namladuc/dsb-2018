@@ -11,15 +11,15 @@ for zip_file in "$SOURCE_DIR"/*.zip; do
 
     # 1. Get the filename without the path (e.g., "data.zip")
     base_name=$(basename "$zip_file")
-    
+
     # 2. Strip the .zip extension (e.g., "data")
     folder_name="${base_name%.*}"
-    
+
     # 3. Define the specific path for this zip
     extraction_path="$TARGET_DIR/$folder_name"
 
     echo "Extracting $base_name to $extraction_path..."
-    
+
     # 4. Create the specific subfolder and unzip into it
     mkdir -p "$extraction_path"
     unzip -q "$zip_file" -d "$extraction_path"
