@@ -1,3 +1,4 @@
+import cv2
 import numpy as np
 
 
@@ -30,3 +31,35 @@ def rle_encode(img):
     runs = np.where(pixels[1:] != pixels[:-1])[0] + 1
     runs[1::2] -= runs[::2]
     return " ".join(str(x) for x in runs)
+
+
+def reset_size_pred(masks, meta_normalization):
+    """Resize predicted masks back to original image size.
+
+    Args:
+        masks: numpy array of shape (N, H, W) - predicted masks
+        meta_normalization: list of metadata dictionaries for each image
+
+    Returns:
+        List of resized masks as numpy arrays
+    """
+    resized_masks = []
+    if not isinstance(meta_normalization, list):
+        meta_normalization = [meta_normalization]
+    for i, meta in enumerate(meta_normalization):
+
+        meta_resample = meta["resample"]
+        orig_h, orig_w = meta_resample["original_size"]  # torch tensor
+        orig_h = int(orig_h.item())
+        orig_w = int(orig_w.item())
+        if meta_resample["resize_mode"] == "pad_and_resize":
+            pad_h, pad_w = meta_resample["pad"]
+            resized_mask = masks[i][: orig_h + pad_h, : orig_w + pad_w]
+        else:  # 'resize_only'
+            resized_mask = cv2.resize(
+                masks[i],
+                (orig_w, orig_h),
+                interpolation=cv2.INTER_CUBIC,
+            )
+        resized_masks.append(resized_mask)
+    return resized_masks

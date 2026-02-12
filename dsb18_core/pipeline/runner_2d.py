@@ -7,7 +7,6 @@ tqdm.pandas()
 import gc
 import torch
 import torch.nn as nn
-from torch.optim import lr_scheduler
 import time
 import copy
 from collections import defaultdict
@@ -15,6 +14,7 @@ import os
 from datetime import datetime
 from ..loss import criterion
 from ..metrics import get_metric
+from ..dataset.utils import reset_size_pred
 
 
 # ==================== Training Utilities ====================
@@ -314,3 +314,43 @@ def run_training2d(model, optimizer, scheduler, run, num_epochs, train_loader, v
     model.load_state_dict(best_model_wts)
 
     return model, history
+
+
+def run_inference2d(model, dataloader, device, CFG):
+    """Run inference on 2D data.
+
+    Args:
+        model: Trained PyTorch model
+        dataloader: DataLoader for inference data
+        device: Device to run inference on
+        CFG: Configuration object
+
+    Returns:
+        List of model predictions
+    """
+    model.eval()
+    predictions = []
+    id_list = []
+
+    pbar = tqdm(enumerate(dataloader), total=len(dataloader), desc="Inference ")
+    for _, (images, images_ids, meta_normalizations) in pbar:
+        images = images.to(device, dtype=torch.float)
+
+        with torch.no_grad():
+            y_pred = model(images)
+
+        # Handle deeply supervised models
+        if CFG.isDeeply:
+            y_pred = y_pred[0]
+
+        y_pred_sigmoid = nn.Sigmoid()(y_pred)
+        prediction_mask = reset_size_pred(
+            y_pred_sigmoid.cpu().numpy().squeeze(), meta_normalizations
+        )
+        predictions.extend(prediction_mask)
+        id_list.extend(images_ids)
+
+        if CFG.debug:
+            break
+
+    return predictions, id_list

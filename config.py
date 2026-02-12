@@ -8,7 +8,7 @@ class CFG:
     # Resume Train
     resume_train = False
     id_wandb = ""
-    checkP_name = ""
+    checkpoint_path = ""
     epochs_res = 0
     using_wandb = 0
     best_dice = -1

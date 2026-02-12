@@ -7,6 +7,7 @@ from PIL import Image
 
 # Sklearn
 from sklearn.model_selection import StratifiedGroupKFold
+from sklearn.model_selection import train_test_split
 
 # PyTorch
 from torch.utils.data import DataLoader
@@ -15,7 +16,7 @@ from torch.utils.data import DataLoader
 import albumentations as A
 
 # import dataset
-from .dataset.dataset2d import Dataset2D
+from .dataset.dataset2d import Dataset2D, Dataset2DTest
 from .dataset.aug import get_aug_dict
 from .fingerprint_utils import get_dsb2018_fingerprint
 
@@ -119,8 +120,9 @@ def get_train_valid_dataset_dsb2018(CFG, path_data):
     print("=" * 80)
 
     train_path = os.path.join(path_data, "stage1_train")
+    test_path = os.path.join(path_data, "stage2_test_final")
     image_ids = [d for d in os.listdir(train_path) if os.path.isdir(os.path.join(train_path, d))]
-
+    image_id_tests = [d for d in os.listdir(test_path) if os.path.isdir(os.path.join(test_path, d))]
     if CFG.debug:
         image_ids = image_ids[:20]  # Use 20 total for train/valid split
 
@@ -152,7 +154,28 @@ def get_train_valid_dataset_dsb2018(CFG, path_data):
             }
         )
 
+    # Create dataframe test
+    data_list_test = []
+    for image_id in image_id_tests:
+        image_file = os.path.join(test_path, image_id, "images", f"{image_id}.png")
+
+        # Get image dimensions
+        img = np.array(Image.open(image_file))
+        if len(img.shape) == 2:
+            height, width = img.shape
+        else:
+            height, width = img.shape[:2]
+
+        data_list_test.append(
+            {
+                "image_id": image_id,
+                "image_path": image_file,
+                "height": height,
+                "width": width,
+            }
+        )
     df = pd.DataFrame(data_list)
+    df_test = pd.DataFrame(data_list_test)
 
     print(f"Total images: {len(df)}")
     print(
@@ -167,8 +190,6 @@ def get_train_valid_dataset_dsb2018(CFG, path_data):
     print("STEP 3: Train/Validation Split")
     print("=" * 80)
 
-    from sklearn.model_selection import train_test_split
-
     # Stratified split by number of nuclei (binned)
     # Use fewer bins for debug mode
     num_bins = 2 if CFG.debug else 5
@@ -180,6 +201,7 @@ def get_train_valid_dataset_dsb2018(CFG, path_data):
 
     train_df = train_df.reset_index(drop=True)
     valid_df = valid_df.reset_index(drop=True)
+    df_test = df_test.reset_index(drop=True)
 
     # In debug mode, use limited samples
     if CFG.debug:
@@ -204,6 +226,8 @@ def get_train_valid_dataset_dsb2018(CFG, path_data):
 
     valid_dataset = Dataset2D(valid_df, CFG, subset="valid", transforms=data_transforms["valid"])
 
+    test_dataset = Dataset2DTest(df_test, CFG, transforms=data_transforms["valid"])
+
     train_loader = DataLoader(
         train_dataset,
         batch_size=CFG.train_bs,
@@ -221,9 +245,18 @@ def get_train_valid_dataset_dsb2018(CFG, path_data):
         pin_memory=CFG.isPinMemory,
     )
 
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=CFG.valid_bs,
+        num_workers=CFG.numWorker,
+        shuffle=False,
+        pin_memory=CFG.isPinMemory,
+    )
+
     print(f"\nDatasets created successfully!")
     print(f"Train batches: {len(train_loader)}")
     print(f"Valid batches: {len(valid_loader)}")
+    print(f"Test batches: {len(test_loader)}")
     print("=" * 80 + "\n")
 
-    return train_loader, valid_loader
+    return train_loader, valid_loader, test_loader

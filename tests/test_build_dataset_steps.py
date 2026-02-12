@@ -3,6 +3,7 @@
 import os
 import sys
 import shutil
+import time
 
 import torch
 
@@ -121,10 +122,8 @@ def test_debug_preprocessing_output() -> None:
         _ = train_dataset[idx]  # Directly call __getitem__ to ensure we get exact indices
 
     # Force flush and wait a moment for filesystem
-    import sys
 
     sys.stdout.flush()
-    import time
 
     time.sleep(0.5)
 

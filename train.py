@@ -15,10 +15,10 @@ warnings.filterwarnings("ignore")
 from dsb18_core.utils import set_seed
 from dsb18_core import get_model, get_dataset_mapping
 from dsb18_core.pipeline import get_train_valid
-from dsb18_core.utils import fetch_scheduler
+from dsb18_core.utils import fetch_scheduler, save_to_submission
 
 
-if __name__ == "__main__":
+def get_args():
     parser = argparse.ArgumentParser(description="U-Net 2D Segmentation Training")
     # Add arguments for each attribute in the CFG class
     parser.add_argument(
@@ -43,10 +43,10 @@ if __name__ == "__main__":
         "--id_wandb", type=str, default=CFG.id_wandb, help="Wandb id for resuming training."
     )
     parser.add_argument(
-        "--checkP_name",
+        "--checkpoint_path",
         type=str,
-        default=CFG.checkP_name,
-        help="Checkpoint name for resuming training.",
+        default=CFG.checkpoint_path,
+        help="Checkpoint path for resuming training.",
     )
     parser.add_argument(
         "--epochs_res", type=int, default=CFG.epochs_res, help="Epochs for resuming training."
@@ -240,6 +240,11 @@ if __name__ == "__main__":
         "--head_num", type=int, default=CFG.head_num, help="Number Of Head in Transformer"
     )
     args = parser.parse_args()
+    return args
+
+
+if __name__ == "__main__":
+    args = get_args()
 
     # Initialize WandB if enabled
     if args.using_wandb:
@@ -254,15 +259,15 @@ if __name__ == "__main__":
             anonymous = "must"
 
     set_seed(args.seed)
-    train_loader, valid_loader = get_dataset_mapping(args)
+    train_loader, valid_loader, test_loader = get_dataset_mapping(args)
 
     # Build model
     print(f"Loading model: {args.net_structure}")
     model = get_model(args)
 
     if args.resume_train:
-        print(f"Resuming from checkpoint: {args.checkP_name}")
-        model.load_state_dict(torch.load(args.checkP_name))
+        print(f"Resuming from checkpoint: {args.checkpoint_path}")
+        model.load_state_dict(torch.load(args.checkpoint_path))
 
     model.to(args.device)
 
@@ -272,8 +277,7 @@ if __name__ == "__main__":
     print(f"{'#'*35}\n")
 
     # Get training function
-    train_valid_fn = get_train_valid(args)
-
+    train_valid_fn, inference_fn = get_train_valid(args)
     # Initialize WandB run
     run = None
     if args.using_wandb:
@@ -299,6 +303,17 @@ if __name__ == "__main__":
         train_loader=train_loader,
         valid_loader=valid_loader,
         CFG=args,
+    )
+
+    preds_test_upsampled, id_lists = inference_fn(
+        model,
+        device=args.device,
+        dataloader=test_loader,
+        CFG=args,
+    )
+
+    save_to_submission(
+        id_lists, preds_test_upsampled, submission_filename=f"submission_{args.fold_selected}.csv"
     )
 
     if args.using_wandb:

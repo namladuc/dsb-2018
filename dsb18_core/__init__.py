@@ -34,7 +34,7 @@ def get_model(CFG):
             in_channels=CFG.input_channel,
             classes=CFG.num_classes,
             isDeeply=CFG.isDeeply,
-            encoder_name=CFG.encoder_backbone,
+            encoder_name=CFG.encoder_backbone if CFG.encoder_backbone else "resnet18",
             encoder_weights=CFG.encoder_weights,
             decoder_channels=[
                 CFG.s_channel * 16,

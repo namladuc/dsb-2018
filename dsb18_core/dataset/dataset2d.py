@@ -217,3 +217,74 @@ class Dataset2D(torch.utils.data.Dataset):
             return torch.tensor(img, dtype=torch.float32), torch.tensor(masks, dtype=torch.float32)
         else:
             return torch.tensor(img, dtype=torch.float32), self.df["image_id"].iloc[index], h, w
+
+
+class Dataset2DTest(torch.utils.data.Dataset):
+    def __init__(self, df, CFG, transforms=None):
+        """Dataset2D for test dataset without masks
+
+        Args:
+            df (_type_): _DataFrame preprocessing for DSB-2018 dataset metadata _
+            CFG (_type_): _Config class_
+            transforms (_type_, optional): _Augmentation_. Defaults to None.
+        """
+        self.df = df
+        self.transforms = transforms
+
+        # Common parameters
+        self.width_norm = CFG.img_size[0] if hasattr(CFG, "img_size") else 256
+        self.height_norm = CFG.img_size[1] if hasattr(CFG, "img_size") else 256
+
+        # DSB-2018 preprocessing parameters
+        self.preprocessing_params = getattr(CFG, "preprocessing_params", None)
+        if self.preprocessing_params is None:
+            # Default preprocessing for DSB-2018 with zscore normalization
+            self.preprocessing_params = {
+                "crop_background": True,
+                "crop_threshold": 0,
+                "crop_margin": 10,
+                "target_size": [self.width_norm, self.height_norm],
+                "resize_method": "bicubic",  # Cubic interpolation for images (Order 3)
+                "resize_mode": getattr(
+                    CFG, "resize_mode", "resize_only"
+                ),  # 'resize_only' or 'pad_and_resize'
+                "intensity_normalization": {
+                    "method": "zscore",  # Z-score normalization for DSB-2018
+                    "zscore": {"mean": 0.0, "std": 1.0},  # Will be computed from fingerprint
+                },
+            }
+
+    def __len__(self):
+        return len(self.df)
+
+    def __getitem__(self, index):
+        """Load and preprocess image for DSB-2018 test dataset without masks"""
+        # Get paths
+        image_path = self.df["image_path"].iloc[index]
+
+        # Load image
+        img = np.array(Image.open(image_path))
+
+        # Ensure 3-channel (convert grayscale to RGB if needed)
+        if len(img.shape) == 2:
+            img = np.stack([img] * 3, axis=-1)
+        elif img.shape[2] == 4:  # RGBA
+            img = img[:, :, :3]
+
+        # Apply preprocessing pipeline
+        if self.preprocessing_params is not None:
+            img, _, meta_normalization = preprocess_pipeline(img, None, self.preprocessing_params)
+
+        # Apply augmentations
+        if self.transforms:
+            data = self.transforms(image=img)
+            img = data["image"]
+
+        # Transpose to CHW format (required by PyTorch)
+        img = img.transpose(2, 0, 1)
+
+        return (
+            torch.tensor(img, dtype=torch.float32),
+            self.df["image_id"].iloc[index],
+            meta_normalization,
+        )

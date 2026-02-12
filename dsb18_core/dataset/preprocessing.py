@@ -312,6 +312,7 @@ def preprocess_pipeline(
             "target_size": target_size,
             "method": config.get("resize_method", "bilinear"),
             "mask_interpolation": config.get("mask_interpolation", "linear"),
+            "resize_mode": config.get("resize_mode", "resize_only"),
         }
 
     # Step 3: Intensity normalization
