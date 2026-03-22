@@ -35,7 +35,7 @@ if __name__ == "__main__":
     # REPLACE with your Google Drive folder URL
     GDRIVE_URL = "https://drive.google.com/drive/folders/1EmBKIpGt-5yvCHbuLvDWSHu_hvSK3_Dz"
 
-    LOCAL_DIR = "./Data/"
+    LOCAL_DIR = "./data/"
 
     download_and_unzip(GDRIVE_URL, LOCAL_DIR)
     print("\nAll done!")

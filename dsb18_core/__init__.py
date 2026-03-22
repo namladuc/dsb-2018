@@ -2,6 +2,7 @@ import torch
 from .model.unet2d import UNet
 from .model.nn_unet2d import nnUNet2D
 from .model.fusion_unet import UnetFusion
+from .model.fusion_unet_plus_plus import UnetPlusFusion
 from .build_dataset import get_dataset_mapping
 
 
@@ -31,6 +32,20 @@ def get_model(CFG):
             isDeeply=CFG.isDeeply,
         ),
         "FusionUnet2D": UnetFusion(
+            in_channels=CFG.input_channel,
+            classes=CFG.num_classes,
+            isDeeply=CFG.isDeeply,
+            encoder_name=CFG.encoder_backbone if CFG.encoder_backbone else "resnet18",
+            encoder_weights=CFG.encoder_weights,
+            decoder_channels=[
+                CFG.s_channel * 16,
+                CFG.s_channel * 8,
+                CFG.s_channel * 4,
+                CFG.s_channel * 2,
+                CFG.s_channel,
+            ],
+        ),
+        "FusionUnet2DPlusPlus": UnetPlusFusion(
             in_channels=CFG.input_channel,
             classes=CFG.num_classes,
             isDeeply=CFG.isDeeply,

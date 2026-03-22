@@ -4,10 +4,28 @@ import torch.nn.functional as F
 import segmentation_models_pytorch as smp
 
 
+def _align_binary_shapes(y_pred, y_true, CFG):
+    """Align prediction and target tensors to (B, C, H, W) for binary losses."""
+    if y_pred.dim() == 3:
+        y_pred = y_pred.unsqueeze(1)
+    if y_true.dim() == 3:
+        y_true = y_true.unsqueeze(1)
+
+    if CFG.isDeeply and y_true.shape[2:] != y_pred.shape[2:]:
+        y_true = F.interpolate(y_true, size=y_pred.shape[2:])
+
+    if y_pred.shape != y_true.shape:
+        raise ValueError(
+            f"Prediction and target must have the same shape after alignment, "
+            f"got y_pred={tuple(y_pred.shape)} and y_true={tuple(y_true.shape)}"
+        )
+
+    return y_pred, y_true
+
+
 def criterion_dice_entropy(y_pred, y_true, CFG):
     """Dice + Entropy loss (50% BCE + 50% Dice)."""
-    if CFG.isDeeply:
-        y_true = F.interpolate(y_true, size=y_pred.shape[2:])
+    y_pred, y_true = _align_binary_shapes(y_pred, y_true, CFG)
     return 0.5 * smp.losses.SoftBCEWithLogitsLoss()(y_pred, y_true) + 0.5 * smp.losses.DiceLoss(
         mode="binary"
     )(y_pred, y_true)
@@ -15,8 +33,7 @@ def criterion_dice_entropy(y_pred, y_true, CFG):
 
 def criterion_tversky_entropy(y_pred, y_true, CFG):
     """Tversky + Entropy loss (50% BCE + 50% Tversky)."""
-    if CFG.isDeeply:
-        y_true = F.interpolate(y_true, size=y_pred.shape[2:])
+    y_pred, y_true = _align_binary_shapes(y_pred, y_true, CFG)
     return 0.5 * smp.losses.SoftBCEWithLogitsLoss()(y_pred, y_true) + 0.5 * smp.losses.TverskyLoss(
         mode="binary", log_loss=False
     )(y_pred, y_true)
@@ -24,8 +41,7 @@ def criterion_tversky_entropy(y_pred, y_true, CFG):
 
 def criterion_focal_dice(y_pred, y_true, CFG):
     """Focal + Dice loss (50% Focal + 50% Dice)."""
-    if CFG.isDeeply:
-        y_true = F.interpolate(y_true, size=y_pred.shape[2:])
+    y_pred, y_true = _align_binary_shapes(y_pred, y_true, CFG)
     return 0.5 * smp.losses.FocalLoss(mode="binary", alpha=0.25, gamma=2.0)(
         y_pred, y_true
     ) + 0.5 * smp.losses.DiceLoss(mode="binary")(y_pred, y_true)
@@ -33,22 +49,19 @@ def criterion_focal_dice(y_pred, y_true, CFG):
 
 def criterion_bce(y_pred, y_true, CFG):
     """Binary Cross Entropy loss."""
-    if CFG.isDeeply:
-        y_true = F.interpolate(y_true, size=y_pred.shape[2:])
+    y_pred, y_true = _align_binary_shapes(y_pred, y_true, CFG)
     return smp.losses.SoftBCEWithLogitsLoss()(y_pred, y_true)
 
 
 def criterion_dice(y_pred, y_true, CFG):
     """Dice loss only."""
-    if CFG.isDeeply:
-        y_true = F.interpolate(y_true, size=y_pred.shape[2:])
+    y_pred, y_true = _align_binary_shapes(y_pred, y_true, CFG)
     return smp.losses.DiceLoss(mode="binary")(y_pred, y_true)
 
 
 def criterion_tversky(y_pred, y_true, CFG):
     """Tversky loss only."""
-    if CFG.isDeeply:
-        y_true = F.interpolate(y_true, size=y_pred.shape[2:])
+    y_pred, y_true = _align_binary_shapes(y_pred, y_true, CFG)
     return smp.losses.TverskyLoss(mode="binary", log_loss=False)(y_pred, y_true)
 
 

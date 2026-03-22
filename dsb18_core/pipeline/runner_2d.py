@@ -17,6 +17,13 @@ from ..metrics import get_metric
 from ..dataset.utils import reset_size_pred
 
 
+def _ensure_4d_mask_tensor(tensor: torch.Tensor) -> torch.Tensor:
+    """Ensure segmentation tensor rank is (B, C, H, W)."""
+    if tensor.dim() == 3:
+        return tensor.unsqueeze(1)
+    return tensor
+
+
 # ==================== Training Utilities ====================
 
 
@@ -33,6 +40,8 @@ def compute_metrics(y_true, y_pred, CFG, metrics_list):
         Dictionary with metric names and values
     """
     metrics_values = {}
+    y_true = _ensure_4d_mask_tensor(y_true)
+    y_pred = _ensure_4d_mask_tensor(y_pred)
     for metric_name in metrics_list:
         try:
             metric_fn = get_metric(metric_name)
@@ -69,7 +78,7 @@ def train_one_epoch2d(model, optimizer, scheduler, dataloader, device, CFG):
     pbar = tqdm(enumerate(dataloader), total=len(dataloader), desc="Train ")
     for step, (images, masks) in pbar:
         images = images.to(device, dtype=torch.float)
-        masks = masks.to(device, dtype=torch.float)
+        masks = _ensure_4d_mask_tensor(masks.to(device, dtype=torch.float))
         batch_size = images.size(0)
 
         optimizer.zero_grad()
@@ -79,6 +88,7 @@ def train_one_epoch2d(model, optimizer, scheduler, dataloader, device, CFG):
         if CFG.isDeeply:
             loss = sum(criterion(p, masks, CFG) for p in y_pred) / len(y_pred)
         else:
+            y_pred = _ensure_4d_mask_tensor(y_pred)
             loss = criterion(y_pred, masks, CFG)
 
         loss.backward()
@@ -128,13 +138,14 @@ def valid_one_epoch2d(model, dataloader, device, optimizer, CFG):
     pbar = tqdm(enumerate(dataloader), total=len(dataloader), desc="Valid ")
     for step, (images, masks) in pbar:
         images = images.to(device, dtype=torch.float)
-        masks = masks.to(device, dtype=torch.float)
+        masks = _ensure_4d_mask_tensor(masks.to(device, dtype=torch.float))
         batch_size = images.size(0)
 
         y_preds = model(images)
 
         # Handle deeply supervised models
         y_pred = y_preds[0] if CFG.isDeeply else y_preds
+        y_pred = _ensure_4d_mask_tensor(y_pred)
         loss = criterion(y_pred, masks, CFG)
 
         running_loss += loss.item() * batch_size

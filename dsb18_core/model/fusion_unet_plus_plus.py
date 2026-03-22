@@ -5,10 +5,10 @@ import torch.nn as nn
 from segmentation_models_pytorch.encoders import get_encoder
 from segmentation_models_pytorch.base.heads import ClassificationHead
 from .util.base_smp import SegmentationHead, SegmentationModel
-from .util.base_unet import UnetDecoder
+from .util.base_unet_plus import UnetPlusPlusDecoder
 
 
-class UnetFusion(SegmentationModel):
+class UnetPlusFusion(SegmentationModel):
     def __init__(
         self,
         isDeeply: bool = False,
@@ -48,12 +48,12 @@ class UnetFusion(SegmentationModel):
 
         add_center_block = encoder_name.startswith("vgg")
 
-        self.decoder = UnetDecoder(
+        self.decoder = UnetPlusPlusDecoder(
             encoder_channels=self.encoder.out_channels,
             decoder_channels=decoder_channels,
             n_blocks=encoder_depth,
             use_norm=decoder_use_norm,
-            add_center_block=add_center_block,
+            center=add_center_block,
             attention_type=decoder_attention_type,
             interpolation_mode=decoder_interpolation,
         )
