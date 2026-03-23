@@ -148,9 +148,10 @@ class UnetPlusPlusDecoder(nn.Module):
         self.blocks = nn.ModuleDict(blocks)
         self.depth = len(self.in_channels) - 1
 
-    def forward(self, features: List[torch.Tensor]) -> torch.Tensor:
+    def forward(self, features: List[torch.Tensor]) -> List[torch.Tensor]:
         features = features[1:]  # remove first skip with same spatial resolution
         features = features[::-1]  # reverse channels to start from head of encoder
+        features[0] = self.center(features[0])
 
         # start building dense connections
         dense_x = {}
@@ -161,6 +162,7 @@ class UnetPlusPlusDecoder(nn.Module):
                         features[depth_idx], features[depth_idx + 1]
                     )
                     dense_x[f"x_{depth_idx}_{depth_idx}"] = output
+
                 else:
                     dense_l_i = depth_idx + layer_idx
                     cat_features = [
@@ -174,4 +176,7 @@ class UnetPlusPlusDecoder(nn.Module):
         dense_x[f"x_{0}_{self.depth}"] = self.blocks[f"x_{0}_{self.depth}"](
             dense_x[f"x_{0}_{self.depth - 1}"]
         )
-        return dense_x[f"x_{0}_{self.depth}"]
+
+        # Return outputs with the same stage ordering as base Unet decoder.
+        out = [dense_x[f"x_{0}_{idx}"] for idx in range(self.depth + 1)]
+        return out
