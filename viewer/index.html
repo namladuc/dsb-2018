@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WSI Inference Viewer</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script>
+      const isViteDev = window.location.port === '5173';
+      if (isViteDev) {
+        const script = document.createElement('script');
+        script.type = 'module';
+        script.src = './src/main.js';
+        document.body.appendChild(script);
+      } else {
+        window.location.replace('./dist/');
+      }
+    </script>
+  </body>
+</html>

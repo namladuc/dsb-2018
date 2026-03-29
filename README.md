@@ -28,3 +28,9 @@ python /kaggle/working/dsb-2018/train.py --train_bs 16 --valid_bs 16 --numWorker
 
 unet++
 attention-unet
+
+# Convert
+
+```
+python export2onnx.py --s_channel 24 --net_structure FusionUnet2D --model_name FusionUnet2D-test02 --lr 0.006 --min_lr 1e-6 --isDeeply True --encoder_backbone timm-efficientnet-b3 --encoder_weights imagenet --checkpoint_path data/models/best_epoch_FusionUnet2D-test02_00.bin
+```

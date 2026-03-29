@@ -1,0 +1,19 @@
+{
+  "name": "onnx-viewer-dev",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "features": {},
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "ms-python.python"
+      ]
+    }
+  },
+  "forwardPorts": [3000, 5173, 8080],
+  "postCreateCommand": "npm install",
+  "remoteUser": "node"
+}

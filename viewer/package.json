@@ -1,0 +1,21 @@
+{
+  "name": "onnx-viewer",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "vite --host 0.0.0.0 --port 5173",
+    "build": "vite build",
+    "serve": "vite preview",
+    "test:model": "node scripts/test-model.js"
+  },
+  "dependencies": {
+    "onnxruntime-node": "^1.23.0",
+    "onnxruntime-web": "^1.19.0"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0",
+    "copy-webpack-plugin": "^8.1.1",
+    "webpack": "^5.36.2",
+    "webpack-cli": "^4.6.0"
+  }
+}

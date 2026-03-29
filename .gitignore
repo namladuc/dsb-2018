@@ -8,4 +8,9 @@ wandb
 *.ptl
 *.bin
 *.csv
+*.onnx
 .vscode/
+data/*
+node_modules/
+*.log
+dist/
