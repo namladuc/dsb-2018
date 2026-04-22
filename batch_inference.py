@@ -4,6 +4,7 @@ import shlex
 import torch
 
 checkpoint_dir = "/kaggle/input/datasets/namsiunhon/dsb2018-ckpt/model_checkpoint"
+output_dir = "/kaggle/working"
 models = os.listdir(checkpoint_dir)
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
@@ -42,7 +43,7 @@ for model_name in models:
     cmd.extend(shlex.split(extra_args))
     
     # Target submission path
-    submission_path = os.path.join(model_path, "submission.csv")
+    submission_path = os.path.join(output_dir, f"submission_{model_name}.csv")
     
     # Ensure redundant/conflicting args are handled by appending our overrides at the end
     cmd.extend([
