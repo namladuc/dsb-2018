@@ -3,7 +3,7 @@ import subprocess
 import shlex
 import torch
 
-checkpoint_dir = "./data/model_checkpoint"
+checkpoint_dir = "/kaggle/input/datasets/namsiunhon/dsb2018-ckpt/model_checkpoint"
 models = os.listdir(checkpoint_dir)
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
