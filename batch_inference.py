@@ -46,7 +46,7 @@ for model_name in models:
     
     # Ensure redundant/conflicting args are handled by appending our overrides at the end
     cmd.extend([
-        "--input_path", "./data",
+        "--input_path", "/kaggle/working/dsb-data-2018",
         "--output_path", submission_path,
         "--using_wandb", "0",
         "--checkpoint_path", checkpoint_file,
