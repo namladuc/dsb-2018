@@ -124,11 +124,22 @@ def get_train_valid_dataset_dsb2018(CFG, path_data):
     print("=" * 80)
 
     train_path = os.path.join(path_data, "stage1_train")
-    # Check for stage1_test or stage2_test_final
-    test_path = os.path.join(path_data, "stage1_test")
-    if not os.path.exists(test_path):
-        test_path = os.path.join(path_data, "stage2_test_final")
+    # Collect test images from both stage1 and stage2 if they exist
+    test_folders = ["stage1_test", "stage2_test_final"]
+    image_id_tests = []
+    test_paths_map = {} # To keep track of which folder each ID belongs to
     
+    for folder in test_folders:
+        folder_path = os.path.join(path_data, folder)
+        if os.path.exists(folder_path):
+            ids = [d for d in os.listdir(folder_path) if os.path.isdir(os.path.join(folder_path, d))]
+            image_id_tests.extend(ids)
+            for img_id in ids:
+                test_paths_map[img_id] = folder_path
+            print(f"  Found {len(ids)} test samples in {folder}")
+    
+    if not image_id_tests:
+        print(f"  Warning: No test samples found in {test_folders} under {path_data}")
     if not os.path.exists(train_path):
          # If train path not found, we might be in a test-only folder. 
          # Try to find stage1_train in parent if path_data looks specifically like a test folder
@@ -137,8 +148,10 @@ def get_train_valid_dataset_dsb2018(CFG, path_data):
              train_path = os.path.join(parent_path, "stage1_train")
              print(f"  Warning: stage1_train not found in {path_data}, using {train_path} for fingerprinting")
 
-    image_ids = [d for d in os.listdir(train_path) if os.path.isdir(os.path.join(train_path, d))]
-    image_id_tests = [d for d in os.listdir(test_path) if os.path.isdir(os.path.join(test_path, d))]
+    image_ids = []
+    if os.path.exists(train_path):
+        image_ids = [d for d in os.listdir(train_path) if os.path.isdir(os.path.join(train_path, d))]
+    
     if CFG.debug:
         image_ids = image_ids[:20]  # Use 20 total for train/valid split
 
@@ -173,7 +186,9 @@ def get_train_valid_dataset_dsb2018(CFG, path_data):
     # Create dataframe test
     data_list_test = []
     for image_id in image_id_tests:
-        image_file = os.path.join(test_path, image_id, "images", f"{image_id}.png")
+        # Use our map to find which test folder this ID belongs to
+        t_path = test_paths_map[image_id]
+        image_file = os.path.join(t_path, image_id, "images", f"{image_id}.png")
 
         # Get image dimensions
         img = np.array(Image.open(image_file))
