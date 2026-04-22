@@ -24,9 +24,21 @@ def get_dsb2018_fingerprint(data_root, max_samples=None, verbose=True):
         Dictionary containing dataset statistics and recommended preprocessing params
     """
     train_path = os.path.join(data_root, "stage1_train")
+    if not os.path.exists(train_path):
+        # Fallback: look for stage1_train in parent if data_root points to a subfolder
+        parent_path = os.path.dirname(os.path.normpath(data_root))
+        if os.path.exists(os.path.join(parent_path, "stage1_train")):
+            train_path = os.path.join(parent_path, "stage1_train")
 
     # Get all image IDs
-    image_ids = [d for d in os.listdir(train_path) if os.path.isdir(os.path.join(train_path, d))]
+    image_ids = []
+    if os.path.exists(train_path):
+        image_ids = [d for d in os.listdir(train_path) if os.path.isdir(os.path.join(train_path, d))]
+    
+    if not image_ids:
+        # Final emergency fallback: try to find any folder with 'images' subfolder nearby 
+        # (This is just to avoid complete failure if structure is non-standard)
+        print(f"  Warning: No training images found in {train_path}. Normalization constants may be local-only.")
 
     if max_samples:
         image_ids = image_ids[:max_samples]

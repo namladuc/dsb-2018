@@ -27,7 +27,7 @@ class CFG:
 
     # ----- Preprocessing Config -----
     spacing = (1, 1)  # x, y spacing
-    normalization_method = "z_score"  # 'z_score' or 'percentile' or 'minmax'
+    normalization_method = "zscore"  # 'zscore' or 'percentile' or 'minmax'
     normalization_scope = "global"  # apply normalization across entire image
     image_interpolation = 3  # Order 3 = Cubic Interpolation
     mask_interpolation = 1  # Order 1 = Linear Interpolation

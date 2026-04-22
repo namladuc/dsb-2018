@@ -3,10 +3,12 @@ import subprocess
 import shlex
 import torch
 
-checkpoint_dir = "/kaggle/input/datasets/namsiunhon/dsb2018-ckpt/model_checkpoint"
-output_dir = "/kaggle/working"
+checkpoint_dir = "data/model_checkpoint"
+output_dir = "data/model_checkpoint"
+# Use 'data' which contains both stage1_train and stage1_test
+test_data_path = "data"
 models = os.listdir(checkpoint_dir)
-device = "cuda:0" if torch.cuda.is_available() else "cpu"
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
 print(f"Using device: {device}")
 
@@ -47,7 +49,7 @@ for model_name in models:
     
     # Ensure redundant/conflicting args are handled by appending our overrides at the end
     cmd.extend([
-        "--input_path", "/kaggle/working/dsb-data-2018",
+        "--input_path", test_data_path,
         "--output_path", submission_path,
         "--using_wandb", "0",
         "--checkpoint_path", checkpoint_file,

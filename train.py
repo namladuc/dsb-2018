@@ -99,6 +99,11 @@ def get_args():
         default=CFG.resize_mode,
         help="Resize mode: 'resize_only' or 'pad_and_resize'.",
     )
+    parser.add_argument(
+        "--showcase",
+        action="store_true",
+        help="Run inference on 5 images and save intermediate steps.",
+    )
     parser.add_argument("--spacing", type=tuple, default=CFG.spacing, help="Image spacing (x, y).")
     parser.add_argument(
         "--normalization_method",

@@ -77,6 +77,10 @@ def get_train_valid_dataset_dsb2018(CFG, path_data):
         },
     }
 
+    # Standardize normalization method name
+    normalization_method = normalization_method.replace("_", "").lower()
+    preprocessing_params["intensity_normalization"]["method"] = normalization_method
+
     # Add normalization parameters based on method
     if normalization_method == "zscore":
         # Z-score normalization: use global mean and std from fingerprint
@@ -90,7 +94,7 @@ def get_train_valid_dataset_dsb2018(CFG, path_data):
             "upper": getattr(CFG, "upper_percentile", 99.0),
         }
     elif normalization_method == "minmax":
-        preprocessing_params["intensity_normalization"]["min_max"] = {
+        preprocessing_params["intensity_normalization"]["minmax"] = {
             "min": fingerprint["intensity"]["global_min"],
             "max": fingerprint["intensity"]["global_max"],
         }
@@ -120,7 +124,19 @@ def get_train_valid_dataset_dsb2018(CFG, path_data):
     print("=" * 80)
 
     train_path = os.path.join(path_data, "stage1_train")
-    test_path = os.path.join(path_data, "stage2_test_final")
+    # Check for stage1_test or stage2_test_final
+    test_path = os.path.join(path_data, "stage1_test")
+    if not os.path.exists(test_path):
+        test_path = os.path.join(path_data, "stage2_test_final")
+    
+    if not os.path.exists(train_path):
+         # If train path not found, we might be in a test-only folder. 
+         # Try to find stage1_train in parent if path_data looks specifically like a test folder
+         parent_path = os.path.dirname(os.path.normpath(path_data))
+         if os.path.exists(os.path.join(parent_path, "stage1_train")):
+             train_path = os.path.join(parent_path, "stage1_train")
+             print(f"  Warning: stage1_train not found in {path_data}, using {train_path} for fingerprinting")
+
     image_ids = [d for d in os.listdir(train_path) if os.path.isdir(os.path.join(train_path, d))]
     image_id_tests = [d for d in os.listdir(test_path) if os.path.isdir(os.path.join(test_path, d))]
     if CFG.debug:

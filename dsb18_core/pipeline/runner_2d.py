@@ -354,9 +354,9 @@ def run_inference2d(model, dataloader, device, CFG):
         if CFG.isDeeply:
             y_pred = y_pred[0]
 
-        y_pred_sigmoid = nn.Sigmoid()(y_pred)
+        y_pred_sigmoid = torch.sigmoid(y_pred)
         prediction_mask = reset_size_pred(
-            y_pred_sigmoid.cpu().numpy().squeeze(), meta_normalizations
+            y_pred_sigmoid.cpu().numpy().squeeze(1), meta_normalizations
         )
         predictions.extend(prediction_mask)
         id_list.extend(images_ids)

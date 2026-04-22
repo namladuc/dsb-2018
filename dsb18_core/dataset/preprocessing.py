@@ -168,7 +168,15 @@ def resample_image(
         # pad_and_resize mode - mask already resampled above
         resampled_mask = resampled_mask if mask is not None else None
 
-    return resampled_image, resampled_mask
+    # Capture resampling info for accurate reverse mapping
+    resample_info = {
+        "original_size": (h, w),
+        "new_size": (new_h, new_w) if resize_mode == "pad_and_resize" else (target_h, target_w),
+        "pad": (pad_h_top, pad_w_left) if resize_mode == "pad_and_resize" else (0, 0),
+        "resize_mode": resize_mode
+    }
+
+    return resampled_image, resampled_mask, resample_info
 
 
 def normalize_intensity(
@@ -186,11 +194,13 @@ def normalize_intensity(
         normalized_image
     """
     image = image.astype(np.float32)
-
     if params is None:
         params = {}
 
-    if method == "min_max":
+    # Standardize method name (handle 'z_score' vs 'zscore')
+    method = method.replace("_", "").lower()
+
+    if method == "minmax":
         # Scale to [0, 1]
         min_val = params.get("min", image.min())
         max_val = params.get("max", image.max())
@@ -203,7 +213,7 @@ def normalize_intensity(
         # Clip to [0, 1]
         normalized = np.clip(normalized, 0, 1)
 
-    elif method == "z_score":
+    elif method == "zscore":
         # Standardize: (x - mean) / std
         mean = params.get("mean", image.mean())
         std = params.get("std", image.std())
@@ -299,7 +309,7 @@ def preprocess_pipeline(
     target_size = config.get("target_size", None)
     if target_size is not None:
         original_shape = image.shape[:2]
-        image, mask = resample_image(
+        image, mask, resample_info = resample_image(
             image,
             target_size,
             method=config.get("resize_method", "bilinear"),
@@ -313,10 +323,13 @@ def preprocess_pipeline(
             "method": config.get("resize_method", "bilinear"),
             "mask_interpolation": config.get("mask_interpolation", "linear"),
             "resize_mode": config.get("resize_mode", "resize_only"),
+            "new_size": resample_info["new_size"],
+            "pad": resample_info["pad"],
         }
 
     # Step 3: Intensity normalization
-    norm_method = config.get("intensity_normalization", {}).get("method", "min_max")
+    norm_method = config.get("intensity_normalization", {}).get("method", "minmax")
+    norm_method = norm_method.replace("_", "").lower()
     norm_params = config.get("intensity_normalization", {}).get(norm_method, {})
 
     image = normalize_intensity(image, method=norm_method, params=norm_params)
