@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import torch
 
 
 # ref: https://www.kaggle.com/paulorzp/run-length-encode-and-decode
@@ -38,27 +39,73 @@ def reset_size_pred(masks, meta_normalization):
 
     Args:
         masks: numpy array of shape (N, H, W) - predicted masks
-        meta_normalization: list of metadata dictionaries for each image
+        meta_normalization: list of metadata dictionaries or a single dict (batched)
 
     Returns:
         List of resized masks as numpy arrays
     """
     resized_masks = []
-    if not isinstance(meta_normalization, list):
+    
+    # Determine number of samples
+    if isinstance(meta_normalization, dict):
+        # Determine N from masks shape or a known tensor in meta
+        N = masks.shape[0] if len(masks.shape) == 3 else 1
+    elif isinstance(meta_normalization, list):
+        N = len(meta_normalization)
+    else:
         meta_normalization = [meta_normalization]
-    for i, meta in enumerate(meta_normalization):
+        N = 1
 
-        meta_resample = meta["resample"]
-        orig_h, orig_w = meta_resample["original_size"]  # torch tensor
-        orig_h = int(orig_h.item())
-        orig_w = int(orig_w.item())
-        if meta_resample["resize_mode"] == "pad_and_resize":
-            pad_h, pad_w = meta_resample["pad"]
-            resized_mask = masks[i][: orig_h + pad_h, : orig_w + pad_w]
+    for i in range(N):
+        if isinstance(meta_normalization, dict):
+            # Extract sample meta from batched dict
+            meta_resample = meta_normalization["resample"]
+            orig_size = meta_resample["original_size"]
+            
+            # If orig_size is [Tensor(B), Tensor(B)] (standard collate for [h, w])
+            if isinstance(orig_size, (list, tuple)) and len(orig_size) == 2:
+                orig_h, orig_w = orig_size[0][i], orig_size[1][i]
+            elif torch.is_tensor(orig_size) and orig_size.dim() == 2:
+                orig_h, orig_w = orig_size[i]
+            else:
+                # Fallback
+                orig_h, orig_w = orig_size[i] if hasattr(orig_size, "__getitem__") else (orig_size, orig_size)
+            
+            resize_mode = meta_resample["resize_mode"]
+            if isinstance(resize_mode, (list, tuple)):
+                resize_mode = resize_mode[i]
+            
+            if "pad" in meta_resample:
+                pad = meta_resample["pad"]
+                if isinstance(pad, (list, tuple)) and len(pad) == 2:
+                    pad_h, pad_w = pad[0][i], pad[1][i]
+                elif torch.is_tensor(pad) and pad.dim() == 2:
+                    pad_h, pad_w = pad[i]
+                else:
+                    pad_h, pad_w = pad[i] if hasattr(pad, "__getitem__") else (0, 0)
+            else:
+                pad_h, pad_w = 0, 0
+        else:
+            meta = meta_normalization[i]
+            meta_resample = meta["resample"]
+            orig_h, orig_w = meta_resample["original_size"]
+            resize_mode = meta_resample["resize_mode"]
+            pad_h, pad_w = meta_resample.get("pad", (0, 0))
+
+        # Convert torch tensors to scalars if needed
+        real_h = int(orig_h.item()) if hasattr(orig_h, "item") else int(orig_h)
+        real_w = int(orig_w.item()) if hasattr(orig_w, "item") else int(orig_w)
+        
+        mask_to_resize = masks[i] if len(masks.shape) == 3 else masks
+
+        if resize_mode == "pad_and_resize":
+            real_pad_h = int(pad_h.item()) if hasattr(pad_h, "item") else int(pad_h)
+            real_pad_w = int(pad_w.item()) if hasattr(pad_w, "item") else int(pad_w)
+            resized_mask = mask_to_resize[: real_h + real_pad_h, : real_w + real_pad_w]
         else:  # 'resize_only'
             resized_mask = cv2.resize(
-                masks[i],
-                (orig_w, orig_h),
+                mask_to_resize,
+                (real_w, real_h),
                 interpolation=cv2.INTER_CUBIC,
             )
         resized_masks.append(resized_mask)

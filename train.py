@@ -65,6 +65,12 @@ def get_args():
     parser.add_argument(
         "--path_data", type=str, default=CFG.path_data, help="Dataset Path (DSB-2018)."
     )
+    parser.add_argument(
+        "--input_path", type=str, default=None, help="Input data path override."
+    )
+    parser.add_argument(
+        "--output_path", type=str, default=None, help="Output submission/result path override."
+    )
     parser.add_argument("--dataset", type=str, default=CFG.dataset, help="Dataset name (DSB2018).")
     parser.add_argument(
         "--aug", type=str, default=CFG.aug, help="Data augmentation kit set choice."

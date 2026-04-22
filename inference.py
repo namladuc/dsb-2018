@@ -21,6 +21,11 @@ from train import get_args
 if __name__ == "__main__":
     args = get_args()
 
+    # Apply overrides
+    if args.input_path:
+        args.path_data = args.input_path
+        print(f"Overriding path_data with input_path: {args.path_data}")
+
     set_seed(args.seed)
     _, _, test_loader = get_dataset_mapping(args)
 
@@ -50,6 +55,16 @@ if __name__ == "__main__":
         CFG=args,
     )
 
+    # Determine submission filename
+    if args.output_path:
+        submission_filename = args.output_path
+        # Ensure directory exists if it's a path
+        out_dir = os.path.dirname(submission_filename)
+        if out_dir:
+            os.makedirs(out_dir, exist_ok=True)
+    else:
+        submission_filename = f"submission_{args.fold_selected}.csv"
+
     save_to_submission(
-        id_lists, preds_test_upsampled, submission_filename=f"submission_{args.fold_selected}.csv"
+        id_lists, preds_test_upsampled, submission_filename=submission_filename
     )
