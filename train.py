@@ -104,6 +104,11 @@ def get_args():
         action="store_true",
         help="Run inference on 5 images and save intermediate steps.",
     )
+    parser.add_argument(
+        "--debug_vis",
+        action="store_true",
+        help="Save debug visualization images (Step 1-6).",
+    )
     parser.add_argument("--spacing", type=tuple, default=CFG.spacing, help="Image spacing (x, y).")
     parser.add_argument(
         "--normalization_method",

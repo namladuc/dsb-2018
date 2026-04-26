@@ -68,35 +68,54 @@ def reset_size_pred(masks, meta_normalization):
     else:
         meta_list = [meta_normalization]
 
-    for i, meta in enumerate(meta_list):
+    for i in range(len(masks)):
         # Extract individual mask from batch
-        if len(masks.shape) == 3:
-            mask = masks[i]
+        mask = masks[i]
+        
+        # Get metadata for this specific sample in batch
+        # metadata can be a list of dicts or a batched dict of tensors
+        if isinstance(meta_list, list):
+            meta = meta_list[i]
         else:
-            mask = masks
+            meta = meta_list # It's a batched dict
 
         # 1. Reverse Resampling/Padding
         if "resample" in meta:
             res = meta["resample"]
             # Helper to safely get int from possibly batched/tensor/list metadata
-            def to_int(x):
-                if hasattr(x, "item"): return int(x.item())
-                if isinstance(x, (list, tuple, np.ndarray)): return int(x[0])
-                return int(x)
-
-            orig_h, orig_w = [to_int(x) for x in res["original_size"]]
-            
-            if res.get("resize_mode") == "pad_and_resize":
-                # Get intermediate size and padding info
-                new_h, new_w = [to_int(x) for x in res.get("new_size", (orig_h, orig_w))]
-                pad_h_top, pad_w_left = [to_int(x) for x in res.get("pad", (0, 0))]
+            def to_int(x, idx):
+                # If it's a tensor/ndarray and has multiple elements, pick the idx-th one
+                if hasattr(x, "__len__") and len(x) > 1 and not isinstance(x, str):
+                    val = x[idx]
+                else:
+                    val = x
                 
-                # Crop center (reverse of center padding)
-                mask = mask[pad_h_top : pad_h_top + new_h, pad_w_left : pad_w_left + new_w]
-                # Resize back to original size (or size after crop if any)
-                mask = cv2.resize(mask, (orig_w, orig_h), interpolation=cv2.INTER_CUBIC)
+                if hasattr(val, "item"): return int(val.item())
+                if isinstance(val, (list, tuple, np.ndarray)): return int(val[0])
+                return int(val)
+
+            orig_h, orig_w = [to_int(x, i) for x in res["original_size"]]
+            
+            if res.get("resize_mode"):
+                # Handle resize_mode which might be a list of strings in batched dict
+                mode = res["resize_mode"]
+                if isinstance(mode, (list, tuple)) and len(mode) > i:
+                    mode = mode[i]
+                
+                if mode == "pad_and_resize":
+                    # Get intermediate size and padding info
+                    new_h, new_w = [to_int(x, i) for x in res.get("new_size", (orig_h, orig_w))]
+                    pad_h_top, pad_w_left = [to_int(x, i) for x in res.get("pad", (0, 0))]
+                    
+                    # Crop center (reverse of center padding)
+                    mask = mask[pad_h_top : pad_h_top + new_h, pad_w_left : pad_w_left + new_w]
+                    # Resize back to original size
+                    mask = cv2.resize(mask, (orig_w, orig_h), interpolation=cv2.INTER_CUBIC)
+                else:
+                    # Direct resize
+                    mask = cv2.resize(mask, (orig_w, orig_h), interpolation=cv2.INTER_CUBIC)
             else:
-                # Direct resize
+                # Fallback to direct resize if mode missing
                 mask = cv2.resize(mask, (orig_w, orig_h), interpolation=cv2.INTER_CUBIC)
         
         # 2. Reverse Background Cropping

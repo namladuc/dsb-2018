@@ -107,9 +107,59 @@ def run_debug_inference(model, test_loader, args):
                 
                 # IMPORTANT: wrap in [raw_mask] to provide (N, H, W) shape expected by reset_size_pred
                 # Also ensure we use the correct (H, W) order: Height=256, Width=320
-                resized_mask = reset_size_pred(np.expand_dims(raw_mask, 0), [sample_meta])[0]
-                predictions.append(resized_mask)
+                restored_mask = reset_size_pred(np.expand_dims(raw_mask, 0), [sample_meta])[0]
+                
+                # Binary threshold (this is what is used for RLE)
+                binary_mask = (restored_mask > 0.5).astype(np.uint8)
+                predictions.append(binary_mask)
                 id_list.append(img_id)
+                
+                # Step 4: RLE Round-trip Check
+                from dsb18_core.dataset.utils import rle_encode, rle_decode
+                
+                # Encode the individual masks (instances)
+                # Note: In DSB2018, each connected component is an instance. 
+                # But here we might just have a semantic mask.
+                # If your model predicts semantic mask, we need to label components.
+                from skimage.morphology import label
+                lab_mask = label(binary_mask)
+                
+                roundtrip_mask = np.zeros_like(binary_mask)
+                for i in range(1, lab_mask.max() + 1):
+                    m = (lab_mask == i).astype(np.uint8)
+                    rle = rle_encode(m)
+                    decoded = rle_decode(rle, m.shape)
+                    roundtrip_mask = np.maximum(roundtrip_mask, decoded)
+                
+                # Step 5: Save visualizations
+                if args.debug_vis:
+                    os.makedirs("debug_inference", exist_ok=True)
+                    # Final Restored Mask
+                    Image.fromarray((binary_mask * 255).astype(np.uint8)).save(f"debug_inference/{img_id_short}_step3_final.png")
+                    # Decoded from RLE
+                    Image.fromarray((roundtrip_mask * 255).astype(np.uint8)).save(f"debug_inference/{img_id_short}_step4_rle_decoded.png")
+                    
+                    # Step 6: Mask Overlay on Original
+                    # Find original image
+                    orig_img = None
+                    for p in ["data/stage1_test", "data/stage2_test_final", "data/stage1_train"]:
+                        p_img = os.path.join(p, img_id, "images", f"{img_id}.png")
+                        if os.path.exists(p_img):
+                            orig_img = np.array(Image.open(p_img).convert("RGB"))
+                            break
+                    
+                    if orig_img is not None:
+                        # Create green overlay
+                        overlay = orig_img.copy()
+                        overlay[binary_mask > 0] = [0, 255, 0] # Green where mask is
+                        # Blend
+                        blended = cv2.addWeighted(orig_img, 0.6, overlay, 0.4, 0)
+                        Image.fromarray(blended).save(f"debug_inference/{img_id_short}_step5_overlay.png")
+                        print(f"    [v] Saved step3, step4, and step5_overlay.png")
+                    else:
+                        print(f"    [v] Saved step3 and step4 (Overlay skipped: original not found)")
+                else:
+                    print(f"    [v] RLE Round-trip OK (Images NOT saved, use --debug_vis to save)")
                 
                 # Step 4: Final Overlay
                 orig_path = None
@@ -144,9 +194,8 @@ def run_debug_inference(model, test_loader, args):
     return predictions, id_list
 
 if __name__ == "__main__":
+    from train import get_args
     args = get_args()
-    is_showcase = args.showcase
-
     if args.input_path:
         args.path_data = args.input_path
     
