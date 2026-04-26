@@ -56,9 +56,17 @@ def unbatch_meta(meta, batch_size=None):
     def get_idx(m, idx):
         if isinstance(m, dict):
             return {k: get_idx(v, idx) for k, v in m.items()}
-        if torch.is_tensor(m) or isinstance(m, (list, tuple)):
-            if len(m) == batch_size:
+        if torch.is_tensor(m):
+            if m.dim() > 0 and len(m) == batch_size:
                 return m[idx]
+            return m
+        if isinstance(m, (list, tuple)):
+            # Special case: if this is a list/tuple of length batch_size,
+            # and it contains simple types (not dicts/lists), it's likely the batch dimension.
+            if len(m) == batch_size and not any(isinstance(v, (dict, list, tuple, torch.Tensor)) for v in m):
+                return m[idx]
+            # Otherwise, it might be a property (like size) containing batched tensors, so recurse.
+            return [get_idx(v, idx) for v in m]
         return m
         
     return [get_idx(meta, i) for i in range(batch_size)]
