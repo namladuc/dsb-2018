@@ -100,6 +100,80 @@ METRICS_FUNCTIONS = {
 }
 
 
+def dsb2018_map(labels_true, labels_pred):
+    """Compute the official DSB-2018 mean Average Precision metric.
+    
+    Average of Precision at IoU thresholds [0.5, 0.55, ..., 0.95].
+    Precision = TP / (TP + FP + FN)
+    
+    Args:
+        labels_true: List of ground truth instance masks [H, W] or labeled image
+        labels_pred: List of predicted instance masks [H, W] or labeled image
+    """
+    if len(labels_true) == 0:
+        return 0.0 if len(labels_pred) > 0 else 1.0
+
+    # If input is labeled image, extract instance masks
+    if labels_true.ndim == 2:
+        from skimage.morphology import label
+        labels_true = [labels_true == i for i in range(1, labels_true.max() + 1)]
+    if labels_pred.ndim == 2:
+        from skimage.morphology import label
+        labels_pred = [labels_pred == i for i in range(1, labels_pred.max() + 1)]
+
+    # Convert to arrays for faster sum
+    labels_true = np.array(labels_true)
+    labels_pred = np.array(labels_pred)
+
+    if len(labels_true) == 0:
+        return 0.0 if len(labels_pred) > 0 else 1.0
+    if len(labels_pred) == 0:
+        return 0.0
+
+    # Compute IoU matrix
+    intersection = np.logical_and(labels_true[:, None], labels_pred[None, :]).sum(axis=(2, 3))
+    union = np.logical_or(labels_true[:, None], labels_pred[None, :]).sum(axis=(2, 3))
+    iou_matrix = intersection / (union + 1e-7)
+
+    thresholds = np.arange(0.5, 1.0, 0.05)
+    precisions = []
+
+    for t in thresholds:
+        # Find matches above threshold
+        matches = iou_matrix >= t
+        
+        # Count TP, FP, FN
+        # Each true object and predicted object can match at most once
+        tp = 0
+        true_matched = np.zeros(len(labels_true), dtype=bool)
+        pred_matched = np.zeros(len(labels_pred), dtype=bool)
+        
+        # Greedy matching (highest IoU first)
+        matched_indices = np.argsort(-iou_matrix, axis=None)
+        for idx in matched_indices:
+            r, c = np.unravel_index(idx, iou_matrix.shape)
+            if iou_matrix[r, c] < t: break
+            if not true_matched[r] and not pred_matched[c]:
+                tp += 1
+                true_matched[r] = True
+                pred_matched[c] = True
+        
+        fp = len(labels_pred) - tp
+        fn = len(labels_true) - tp
+        
+        precisions.append(tp / (tp + fp + fn + 1e-7))
+        
+    return np.mean(precisions)
+
+
+def dice_numpy(y_true, y_pred, epsilon=1e-7):
+    """Dice coefficient for numpy arrays."""
+    y_true = np.asarray(y_true).astype(bool)
+    y_pred = np.asarray(y_pred).astype(bool)
+    intersection = np.logical_and(y_true, y_pred).sum()
+    return (2. * intersection + epsilon) / (y_true.sum() + y_pred.sum() + epsilon)
+
+
 def get_metric(metric_name: str = "dice"):
     """Get metric function by name.
 

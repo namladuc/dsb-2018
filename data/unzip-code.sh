@@ -16,13 +16,15 @@ for zip_file in "$SOURCE_DIR"/*.zip; do
     folder_name="${base_name%.*}"
 
     # 3. Define the specific path for this zip
-    extraction_path="$TARGET_DIR/$folder_name"
-
-    echo "Extracting $base_name to $extraction_path..."
-
-    # 4. Create the specific subfolder and unzip into it
-    mkdir -p "$extraction_path"
-    unzip -q "$zip_file" -d "$extraction_path"
+    if [[ "$base_name" == "stage1_solution.csv.zip" ]]; then
+        echo "Extracting solution file $base_name directly to $TARGET_DIR..."
+        unzip -q -o "$zip_file" -d "$TARGET_DIR"
+    else
+        extraction_path="$TARGET_DIR/$folder_name"
+        echo "Extracting $base_name to $extraction_path..."
+        mkdir -p "$extraction_path"
+        unzip -q -o "$zip_file" -d "$extraction_path"
+    fi
 done
 
 echo "Done! All files moved to $TARGET_DIR"
