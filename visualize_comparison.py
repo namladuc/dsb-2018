@@ -67,8 +67,35 @@ def visualize_comparison(model_name, checkpoint_path, img_id=None, num_samples=3
             self.use_parallel = False
 
     try:
-        # 1. Initialize model architecture
-        args = Args()
+        # 1. Load configuration from arg.md if it exists
+        model_dir = os.path.dirname(checkpoint_path)
+        arg_file = os.path.join(model_dir, "arg.md")
+        
+        from train import get_args
+        import sys
+        import shlex
+        
+        orig_argv = sys.argv
+        if os.path.exists(arg_file):
+            with open(arg_file, "r") as f:
+                extra_args = f.read().strip()
+            sys.argv = ["dummy.py"] + shlex.split(extra_args)
+            print(f"Loading args from: {arg_file}")
+        else:
+            sys.argv = ["dummy.py"]
+            
+        args = get_args()
+        sys.argv = orig_argv
+        
+        # Override with local paths if on Windows/Local
+        if not os.path.exists("/kaggle/working/"):
+            args.path_data = "data"
+        else:
+            args.path_data = "/kaggle/working/dsb-data-2018"
+            
+        # Override with necessary paths/device
+        args.device = device
+        
         model = get_model(args)
         
         # Load weights
@@ -193,7 +220,7 @@ def visualize_comparison(model_name, checkpoint_path, img_id=None, num_samples=3
         print(f"Saved comparison to {save_path}")
 
 if __name__ == "__main__":
-    # Example for FusionUnet2D-test03_timmb3
-    model_name = "FusionUnet2D-test03_timmb3"
-    checkpoint = "data/model_checkpoint/FusionUnet2D-test03_timmb3/best_epoch_FusionUnet2D-test02_00.bin"
+    # Analyzing why Baseline is so low
+    model_name = "Unet2D-Baseline_baseline"
+    checkpoint = "data/model_checkpoint/Unet2D-Baseline_baseline/best_epoch_Unet2D-Baseline_00.bin"
     visualize_comparison(model_name, checkpoint)

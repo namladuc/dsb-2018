@@ -18,6 +18,16 @@ from dsb18_core.pipeline import get_train_valid
 from dsb18_core.utils import fetch_scheduler, save_to_submission
 
 
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ("yes", "true", "t", "y", "1"):
+        return True
+    elif v.lower() in ("no", "false", "f", "n", "0"):
+        return False
+    else:
+        raise argparse.ArgumentTypeError("Boolean value expected.")
+
 def get_args():
     parser = argparse.ArgumentParser(description="U-Net 2D Segmentation Training")
     # Add arguments for each attribute in the CFG class
@@ -35,7 +45,7 @@ def get_args():
     )
     parser.add_argument(
         "--resume_train",
-        type=bool,
+        type=str2bool,
         default=CFG.resume_train,
         help="Resume training from a checkpoint.",
     )
@@ -77,7 +87,7 @@ def get_args():
     )
     parser.add_argument(
         "--isPinMemory",
-        type=bool,
+        type=str2bool,
         default=CFG.isPinMemory,
         help="Enable pinned memory if available.",
     )
@@ -138,7 +148,7 @@ def get_args():
     # Model
     parser.add_argument("--model_name", type=str, default=CFG.model_name, help="Name of the model.")
     parser.add_argument(
-        "--isDeeply", type=bool, default=CFG.isDeeply, help="Enable deep learning features."
+        "--isDeeply", type=str2bool, default=CFG.isDeeply, help="Enable deep learning features."
     )
     parser.add_argument(
         "--encoder_backbone",
