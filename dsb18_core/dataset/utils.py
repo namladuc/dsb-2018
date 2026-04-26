@@ -46,23 +46,27 @@ def reset_size_pred(masks, meta_normalization):
     resized_masks = []
     
     # Normalize input to list of dicts for easier processing
+    def unbatch_meta(meta, idx):
+        if isinstance(meta, dict):
+            return {k: unbatch_meta(v, idx) for k, v in meta.items()}
+        if isinstance(meta, (list, tuple)):
+            if len(meta) > idx:
+                return meta[idx]
+            return meta
+        if torch.is_tensor(meta):
+            if meta.dim() > 0 and len(meta) > idx:
+                return meta[idx]
+            return meta
+        return meta
+
     if isinstance(meta_normalization, dict):
-        # Check if this is a batched dictionary (standard collate)
-        # We assume it's batched if elements are tensors or lists of same length
-        meta_list = []
-        any_key = next(iter(meta_normalization))
-        any_val = meta_normalization[any_key]
+        # Determine batch size from first tensor/list
+        any_val = next(iter(meta_normalization.values()))
+        N = len(any_val) if hasattr(any_val, "__len__") and not isinstance(any_val, str) else 1
         
-        # If any_val is a Tensor with batch dimension or a list, it's likely batched
-        if torch.is_tensor(any_val) and any_val.dim() > 0:
-            N = len(any_val)
-            for i in range(N):
-                sample_meta = {k: v[i] if torch.is_tensor(v) or isinstance(v, (list, tuple)) else v 
-                             for k, v in meta_normalization.items()}
-                meta_list.append(sample_meta)
-        else:
-            # Single sample dictionary
-            meta_list = [meta_normalization]
+        meta_list = []
+        for i in range(N):
+            meta_list.append(unbatch_meta(meta_normalization, i))
     elif isinstance(meta_normalization, list):
         meta_list = meta_normalization
     else:
@@ -71,63 +75,40 @@ def reset_size_pred(masks, meta_normalization):
     for i in range(len(masks)):
         # Extract individual mask from batch
         mask = masks[i]
-        
-        # Get metadata for this specific sample in batch
-        # metadata can be a list of dicts or a batched dict of tensors
-        if isinstance(meta_list, list):
-            meta = meta_list[i]
-        else:
-            meta = meta_list # It's a batched dict
+        meta = meta_list[i] if i < len(meta_list) else meta_list[-1]
+
+        # Helper to safely get int from possibly tensor/list metadata
+        def to_int(val):
+            if hasattr(val, "item"): return int(val.item())
+            if isinstance(val, (list, tuple, np.ndarray)): return int(val[0])
+            return int(val)
 
         # 1. Reverse Resampling/Padding
         if "resample" in meta:
             res = meta["resample"]
-            # Helper to safely get int from possibly batched/tensor/list metadata
-            def to_int(x, idx):
-                # If it's a tensor/ndarray and has multiple elements, pick the idx-th one
-                if hasattr(x, "__len__") and len(x) > 1 and not isinstance(x, str):
-                    val = x[idx]
-                else:
-                    val = x
-                
-                if hasattr(val, "item"): return int(val.item())
-                if isinstance(val, (list, tuple, np.ndarray)): return int(val[0])
-                return int(val)
-
-            orig_h, orig_w = [to_int(x, i) for x in res["original_size"]]
+            orig_h, orig_w = [to_int(x) for x in res["original_size"]]
             
-            if res.get("resize_mode"):
-                # Handle resize_mode which might be a list of strings in batched dict
-                mode = res["resize_mode"]
-                if isinstance(mode, (list, tuple)) and len(mode) > i:
-                    mode = mode[i]
+            mode = res.get("resize_mode")
+            if mode == "pad_and_resize":
+                # Get intermediate size and padding info
+                new_h, new_w = [to_int(x) for x in res.get("new_size", (orig_h, orig_w))]
+                pad_h_top, pad_w_left = [to_int(x) for x in res.get("pad", (0, 0))]
                 
-                if mode == "pad_and_resize":
-                    # Get intermediate size and padding info
-                    new_h, new_w = [to_int(x, i) for x in res.get("new_size", (orig_h, orig_w))]
-                    pad_h_top, pad_w_left = [to_int(x, i) for x in res.get("pad", (0, 0))]
-                    
-                    # Crop center (reverse of center padding)
-                    mask = mask[pad_h_top : pad_h_top + new_h, pad_w_left : pad_w_left + new_w]
-                    # Resize back to original size
-                    mask = cv2.resize(mask, (orig_w, orig_h), interpolation=cv2.INTER_CUBIC)
-                else:
-                    # Direct resize
-                    mask = cv2.resize(mask, (orig_w, orig_h), interpolation=cv2.INTER_CUBIC)
+                # Crop center (reverse of center padding)
+                mask = mask[pad_h_top : pad_h_top + new_h, pad_w_left : pad_w_left + new_w]
+                # Resize back to original size
+                mask = cv2.resize(mask, (orig_w, orig_h), interpolation=cv2.INTER_CUBIC)
             else:
-                # Fallback to direct resize if mode missing
+                # Direct resize or fallback
                 mask = cv2.resize(mask, (orig_w, orig_h), interpolation=cv2.INTER_CUBIC)
         
         # 2. Reverse Background Cropping
         if "crop" in meta:
             crop = meta["crop"]
             if crop.get("cropped", False):
-                full_h, full_w = crop["original_shape"]
-                full_h = int(full_h.item()) if hasattr(full_h, "item") else int(full_h)
-                full_w = int(full_w.item()) if hasattr(full_w, "item") else int(full_w)
-                
+                full_h, full_w = [to_int(x) for x in crop["original_shape"]]
                 bbox = crop["bbox"]
-                y_min, y_max, x_min, x_max = [int(v.item()) if hasattr(v, "item") else int(v) for v in bbox]
+                y_min, y_max, x_min, x_max = [to_int(v) for v in bbox]
                 
                 full_mask = np.zeros((full_h, full_w), dtype=mask.dtype)
                 full_mask[y_min:y_max, x_min:x_max] = mask
