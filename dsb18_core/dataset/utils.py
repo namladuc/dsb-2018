@@ -50,9 +50,11 @@ def reset_size_pred(masks, meta_normalization):
         if isinstance(meta, dict):
             return {k: unbatch_meta(v, idx) for k, v in meta.items()}
         if isinstance(meta, (list, tuple)):
-            if len(meta) > idx:
-                return meta[idx]
-            return meta
+            # If the list/tuple itself represents the batch (length == N), 
+            # and we are at the top level of the metadata, we might want to index it.
+            # But in PyTorch, usually it's a list of tensors.
+            # We should recurse and see if we find tensors to index.
+            return [unbatch_meta(v, idx) for v in meta]
         if torch.is_tensor(meta):
             if meta.dim() > 0 and len(meta) > idx:
                 return meta[idx]
@@ -60,9 +62,8 @@ def reset_size_pred(masks, meta_normalization):
         return meta
 
     if isinstance(meta_normalization, dict):
-        # Determine batch size from first tensor/list
-        any_val = next(iter(meta_normalization.values()))
-        N = len(any_val) if hasattr(any_val, "__len__") and not isinstance(any_val, str) else 1
+        # Use the actual batch size from masks
+        N = len(masks)
         
         meta_list = []
         for i in range(N):
