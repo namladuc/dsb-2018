@@ -114,10 +114,10 @@ def dsb2018_map(labels_true, labels_pred):
         return 0.0 if len(labels_pred) > 0 else 1.0
 
     # If input is labeled image, extract instance masks
-    if labels_true.ndim == 2:
+    if getattr(labels_true, "ndim", 0) == 2:
         from skimage.morphology import label
         labels_true = [labels_true == i for i in range(1, labels_true.max() + 1)]
-    if labels_pred.ndim == 2:
+    if getattr(labels_pred, "ndim", 0) == 2:
         from skimage.morphology import label
         labels_pred = [labels_pred == i for i in range(1, labels_pred.max() + 1)]
 
@@ -130,9 +130,18 @@ def dsb2018_map(labels_true, labels_pred):
     if len(labels_pred) == 0:
         return 0.0
 
-    # Compute IoU matrix
-    intersection = np.logical_and(labels_true[:, None], labels_pred[None, :]).sum(axis=(2, 3))
-    union = np.logical_or(labels_true[:, None], labels_pred[None, :]).sum(axis=(2, 3))
+    # Convert to float32 for fast matrix multiplication
+    true_flat = labels_true.reshape(len(labels_true), -1).astype(np.float32)
+    pred_flat = labels_pred.reshape(len(labels_pred), -1).astype(np.float32)
+    
+    # intersection[i, j] is the count of overlapping pixels between true_i and pred_j
+    intersection = np.matmul(true_flat, pred_flat.T)
+    
+    # union[i, j] = area_i + area_j - intersection[i, j]
+    true_areas = true_flat.sum(axis=1)
+    pred_areas = pred_flat.sum(axis=1)
+    union = true_areas[:, None] + pred_areas[None, :] - intersection
+    
     iou_matrix = intersection / (union + 1e-7)
 
     thresholds = np.arange(0.5, 1.0, 0.05)

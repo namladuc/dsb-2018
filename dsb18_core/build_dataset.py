@@ -124,8 +124,15 @@ def get_train_valid_dataset_dsb2018(CFG, path_data):
     print("=" * 80)
 
     train_path = os.path.join(path_data, "stage1_train")
-    # Collect test images from both stage1 and stage2 if they exist
-    test_folders = ["stage1_test", "stage2_test_final"]
+    # Collect test images based on requested stage
+    test_stage = getattr(CFG, "test_stage", "all")
+    if test_stage == "stage1":
+        test_folders = ["stage1_test"]
+    elif test_stage == "stage2":
+        test_folders = ["stage2_test_final"]
+    else:
+        test_folders = ["stage1_test", "stage2_test_final"]
+        
     image_id_tests = []
     test_paths_map = {} # To keep track of which folder each ID belongs to
     

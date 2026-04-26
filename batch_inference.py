@@ -14,7 +14,14 @@ from dsb18_core.metrics import dsb2018_map, dice_numpy
 from dsb18_core.dataset.utils import rle_decode
 
 def evaluate_models():
-    # Configuration for paths (local paths for debug, but script works on Kaggle too)
+    import argparse
+    parser = argparse.ArgumentParser(description="DSB-2018 Batch Inference and Evaluation")
+    parser.add_argument("--debug", action="store_true", help="Enable debug mode (2 images per model)")
+    parser.add_argument("--device", type=str, default=None, help="Device to use (cuda/cpu)")
+    script_args = parser.parse_args()
+    
+    DEBUG_MODE = script_args.debug
+    
     if os.path.exists("/kaggle/working/"):
         checkpoint_dir = "/kaggle/input/datasets/namsiunhon/dsb2018-ckpt/model_checkpoint"
         data_dir = "/kaggle/working/dsb-data-2018"
@@ -33,7 +40,7 @@ def evaluate_models():
         print(f"Found solution file: {solution_path}")
         solution_df = pd.read_csv(solution_path)
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    device = script_args.device if script_args.device else ("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
     models_to_run = [d for d in os.listdir(checkpoint_dir) if os.path.isdir(os.path.join(checkpoint_dir, d))]
@@ -81,6 +88,10 @@ def evaluate_models():
         args.path_data = data_dir
         args.device = device
         args.numWorker = 0 # Safety for local run
+        args.test_stage = "stage1" # ONLY Stage 1 for evaluation
+        if DEBUG_MODE:
+            args.debug = True
+            print("  [DEBUG MODE] Only 1 batch will be processed.")
         
         # 2. Build Dataset
         _, _, test_loader = get_dataset_mapping(args)
@@ -96,14 +107,19 @@ def evaluate_models():
         
         # 5. Save Submission
         sub_path = os.path.join(output_dir, f"submission_{model_name}.csv")
-        save_to_submission(predictions, id_list, sub_path)
+        save_to_submission(id_list, predictions, sub_path)
         print(f"Generated submission: {sub_path}")
 
         # 6. Evaluate if solution exists
         if solution_df is not None:
             print(f"Calculating metrics for Stage 1 Test...")
             # Filter predictions for IDs that are in solution_df
-            solution_ids = set(solution_df["ImageId"].unique())
+            solution_ids = list(solution_df["ImageId"].unique())
+            if DEBUG_MODE:
+                # Only evaluate first few images found in predictions
+                found_ids = [img_id for img_id in id_list if img_id in solution_ids]
+                solution_ids = found_ids[:2] # EXACTLY 2 images as requested
+                print(f"  [DEBUG MODE] Evaluating only {len(solution_ids)} images: {solution_ids}")
             
             map_scores = []
             dice_scores = []
@@ -111,16 +127,17 @@ def evaluate_models():
             # Map predictions to ID for easier lookup
             pred_map = {img_id: mask for img_id, mask in zip(id_list, predictions)}
             
-            for img_id in tqdm(solution_ids, desc="Evaluating"):
+            for img_id in solution_ids:
                 if img_id not in pred_map:
                     continue
                 
-                # Get Pred
-                pred_mask = pred_map[img_id]
+                # Get Pred and label it
+                pred_prob = pred_map[img_id]
+                pred_mask = label(pred_prob > 0.5)
                 
                 # Get GT (Solution CSV has multiple rows per image, one per instance)
                 gt_rows = solution_df[solution_df["ImageId"] == img_id]
-                h, w = pred_mask.shape
+                h, w = pred_prob.shape
                 gt_instances = []
                 for _, row in gt_rows.iterrows():
                     rle = row["EncodedPixels"]
@@ -140,11 +157,13 @@ def evaluate_models():
                 combined_pred = (pred_mask > 0).astype(np.uint8)
                 score_dice = dice_numpy(combined_gt, combined_pred)
                 dice_scores.append(score_dice)
+                
+                print(f"    Image {img_id}: mAP={score_map:.4f}, Dice={score_dice:.4f}")
             
             mean_map = np.mean(map_scores) if map_scores else 0
             mean_dice = np.mean(dice_scores) if dice_scores else 0
             
-            print(f"Result for {model_name}: mAP={mean_map:.4f}, Dice={mean_dice:.4f}")
+            print(f"  => Result for {model_name}: mAP={mean_map:.4f}, Dice={mean_dice:.4f}")
             results.append({
                 "Model": model_name,
                 "mAP": mean_map,
@@ -162,4 +181,9 @@ def evaluate_models():
         report_df.to_csv(os.path.join(output_dir, "evaluation_report.csv"), index=False)
 
 if __name__ == "__main__":
-    evaluate_models()
+    try:
+        evaluate_models()
+    except Exception as e:
+        import traceback
+        print("An error occurred during evaluation:")
+        traceback.print_exc()
