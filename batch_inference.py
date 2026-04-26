@@ -16,7 +16,7 @@ from dsb18_core.dataset.utils import rle_decode
 def evaluate_models():
     # Configuration for paths (local paths for debug, but script works on Kaggle too)
     if os.path.exists("/kaggle/working/"):
-        checkpoint_dir = "/kaggle/input/datasets/namsiunhon/dsb2018-ckpt"
+        checkpoint_dir = "/kaggle/input/datasets/namsiunhon/dsb2018-ckpt/model_checkpoint"
         data_dir = "/kaggle/working/dsb-data-2018"
         output_dir = "/kaggle/working/eval_results"
     else:
