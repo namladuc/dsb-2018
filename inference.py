@@ -196,6 +196,7 @@ def run_debug_inference(model, test_loader, args):
 if __name__ == "__main__":
     from train import get_args
     args = get_args()
+    is_showcase = args.showcase
     if args.input_path:
         args.path_data = args.input_path
     
