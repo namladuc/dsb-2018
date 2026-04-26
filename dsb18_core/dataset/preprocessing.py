@@ -100,9 +100,9 @@ def resample_image(
     mask_interp = interpolation_map.get(mask_interpolation, cv2.INTER_LINEAR)
 
     # Handle different resize modes
+    h, w = image.shape[:2]
     if resize_mode == "pad_and_resize":
         # Preserve aspect ratio with padding
-        h, w = image.shape[:2]
         aspect_ratio = w / h
         target_aspect = target_w / target_h
 

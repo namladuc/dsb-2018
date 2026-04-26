@@ -34,55 +34,55 @@ def rle_encode(img):
     return " ".join(str(x) for x in runs)
 
 
-def reset_size_pred(masks, meta_normalization):
-    """Resize predicted masks back to original image size correctly.
+def unbatch_meta(meta, batch_size=None):
+    """Recursively unbatches metadata dictionaries from DataLoader.
     
-    Handles:
-    - Reversing center padding in 'pad_and_resize' mode
-    - Reversing background cropping if 'crop_background' was used
-    - Scaling back to original dimensions
+    Returns a list of dictionaries (one per sample).
     """
-    import torch
-    resized_masks = []
+    if batch_size is None:
+        # Infer batch size from any tensor/list in the dict
+        def get_bs(m):
+            if torch.is_tensor(m): return len(m)
+            if isinstance(m, (list, tuple)) and not isinstance(m[0], str): return len(m)
+            if isinstance(m, dict):
+                for v in m.values():
+                    b = get_bs(v)
+                    if b is not None: return b
+            return None
+        batch_size = get_bs(meta)
     
-    # Normalize input to list of dicts for easier processing
-    def unbatch_meta(meta, idx):
-        if isinstance(meta, dict):
-            return {k: unbatch_meta(v, idx) for k, v in meta.items()}
-        if isinstance(meta, (list, tuple)):
-            # If the list/tuple itself represents the batch (length == N), 
-            # and we are at the top level of the metadata, we might want to index it.
-            # But in PyTorch, usually it's a list of tensors.
-            # We should recurse and see if we find tensors to index.
-            return [unbatch_meta(v, idx) for v in meta]
-        if torch.is_tensor(meta):
-            if meta.dim() > 0 and len(meta) > idx:
-                return meta[idx]
-            return meta
-        return meta
+    if batch_size is None: return [meta]
 
-    if isinstance(meta_normalization, dict):
-        # Use the actual batch size from masks
-        N = len(masks)
+    def get_idx(m, idx):
+        if isinstance(m, dict):
+            return {k: get_idx(v, idx) for k, v in m.items()}
+        if torch.is_tensor(m) or isinstance(m, (list, tuple)):
+            if len(m) == batch_size:
+                return m[idx]
+        return m
         
-        meta_list = []
-        for i in range(N):
-            meta_list.append(unbatch_meta(meta_normalization, i))
+    return [get_idx(meta, i) for i in range(batch_size)]
+
+def to_int(val):
+    if hasattr(val, "item"): return int(val.item())
+    if isinstance(val, (list, tuple, np.ndarray)) and len(val) > 0: return int(val[0])
+    return int(val)
+
+def reset_size_pred(masks, meta_normalization):
+    """Resize predicted masks back to original image size correctly."""
+    import torch
+    
+    if isinstance(meta_normalization, dict):
+        meta_list = unbatch_meta(meta_normalization, len(masks))
     elif isinstance(meta_normalization, list):
         meta_list = meta_normalization
     else:
-        meta_list = [meta_normalization]
+        meta_list = [meta_normalization] * len(masks)
 
+    resized_masks = []
     for i in range(len(masks)):
-        # Extract individual mask from batch
         mask = masks[i]
-        meta = meta_list[i] if i < len(meta_list) else meta_list[-1]
-
-        # Helper to safely get int from possibly tensor/list metadata
-        def to_int(val):
-            if hasattr(val, "item"): return int(val.item())
-            if isinstance(val, (list, tuple, np.ndarray)): return int(val[0])
-            return int(val)
+        meta = meta_list[i]
 
         # 1. Reverse Resampling/Padding
         if "resample" in meta:
