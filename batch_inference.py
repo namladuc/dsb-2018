@@ -17,8 +17,8 @@ def evaluate_models():
     # Configuration for paths (local paths for debug, but script works on Kaggle too)
     if os.path.exists("/kaggle/working/"):
         checkpoint_dir = "/kaggle/input/datasets/namsiunhon/dsb2018-ckpt"
-        data_dir = "/kaggle/input/datasets/namsiunhon/dsb2018-ckpt"
-        output_dir = "/kaggle/input/datasets/namsiunhon/dsb2018-ckpt/eval_results"
+        data_dir = "/kaggle/working/dsb-data-2018"
+        output_dir = "/kaggle/working/eval_results"
     else:
         checkpoint_dir = "data/model_checkpoint"
         data_dir = "data"
