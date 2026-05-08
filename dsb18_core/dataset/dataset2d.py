@@ -5,6 +5,7 @@ from PIL import Image
 from glob import glob
 import os
 from .preprocessing import preprocess_pipeline
+from .aug import convert_float_to_uint8_for_augmentation
 
 
 class Dataset2D(torch.utils.data.Dataset):
@@ -205,8 +206,10 @@ class Dataset2D(torch.utils.data.Dataset):
 
         # Apply augmentations
         if self.transforms:
+            # Convert to uint8 for augmentation, apply transforms, convert back to float
+            img = convert_float_to_uint8_for_augmentation(img)
             data = self.transforms(image=img, mask=masks)
-            img = data["image"]
+            img = data["image"].astype(np.float32) / 255.0
             masks = data["mask"]
 
         # Transpose to CHW format (required by PyTorch)
@@ -277,8 +280,10 @@ class Dataset2DTest(torch.utils.data.Dataset):
 
         # Apply augmentations
         if self.transforms:
+            # Convert to uint8 for augmentation, apply transforms, convert back to float
+            img = convert_float_to_uint8_for_augmentation(img)
             data = self.transforms(image=img)
-            img = data["image"]
+            img = data["image"].astype(np.float32) / 255.0
 
         # Transpose to CHW format (required by PyTorch)
         img = img.transpose(2, 0, 1)

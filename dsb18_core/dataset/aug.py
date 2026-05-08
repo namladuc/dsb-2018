@@ -5,6 +5,26 @@ import torch
 import cv2
 
 
+def convert_float_to_uint8_for_augmentation(img):
+    """
+    Convert normalized float image to uint8 for augmentation pipeline.
+    Handles Z-score normalized images with negative values.
+    
+    Args:
+        img: Float image array (potentially negative values)
+    
+    Returns:
+        img: uint8 image in [0, 255] range
+    """
+    if img.dtype in [np.float32, np.float64]:
+        img_min, img_max = img.min(), img.max()
+        scale = img_max - img_min
+        if scale > 1e-8:
+            return ((img - img_min) / scale * 255).astype(np.uint8)
+        return np.zeros_like(img, dtype=np.uint8)
+    return img.astype(np.uint8)
+
+
 def get_aug_dict(CFG):
 
     # - Clahe, Sharpen, Emboss
@@ -106,3 +126,6 @@ class DropChannelRandom(A.ImageOnlyTransform):
             channel_choice = np.random.randint(low=0, high=num_channel)
         img[:, :, channel_choice] = np.zeros((img.shape[:2]), dtype=np.float32)
         return img
+
+
+
